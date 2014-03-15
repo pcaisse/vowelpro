@@ -41,6 +41,9 @@ def get_vowel_range(wav):
 
     print vowel_range
 
+    fft = np.fft.fftn(signal)
+    print fft
+
     # Plot waveform
     plt.subplot(211)
     plt.plot(signal)
