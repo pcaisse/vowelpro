@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys
-import matplotlib.pyplot as plot
+import matplotlib.pyplot as plt
 import numpy
 import wave
 
@@ -18,6 +18,7 @@ def show_wave_n_spec(speech):
     signal = numpy.fromstring(signal, 'Int16')
     f = spf.getframerate()
 
+    max_val = max(signal)
     bucket_size = 500
     spike_factor = 10
 
@@ -27,15 +28,18 @@ def show_wave_n_spec(speech):
     # Get averages within buckets
     means = [int(numpy.mean(signal_pos[i:i+bucket_size])) for i in xrange(0, len(signal_pos), bucket_size)]
 
-    print "Means = %.6f, Std = %.6f" % (numpy.mean(means), numpy.std(means))
+    # Get spikes
+    spike_indexes = [i*bucket_size for i in xrange(0, len(means)) if i > 0 and means[i-1]*spike_factor < means[i]]
 
-    explosions = [means[i] for i in xrange(0, len(means)) if i > 0 and means[i-1]*spike_factor < means[i]]
+    print spike_indexes
 
-    print means
-    print explosions
+    # Plot graph
+    plt.plot(signal)
+    # Plot spikes
+    for index in spike_indexes[:2]:
+        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='dashed')
 
-    plot.plot(means)
-    plot.show()
+    plt.show()
     spf.close()
 
 fil = sys.argv[1]
