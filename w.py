@@ -21,11 +21,13 @@ def wp(speech):
     # iterate over sound_info
     chunk_size = 1000 # 1/16 second
     mean = None
-    prev_mean = None
-    start_secs = None
-    end_secs = None
+    # prev_mean = None
+    # start_secs = None
+    # end_secs = None
 
     print "Variance = %.6f, Std = %.6f" % (numpy.var(sound_info), numpy.std(sound_info))
+
+    chunkified_sound_info = []
 
     for i in xrange(0, len(sound_info), chunk_size):
         chunk = sound_info[i:i+chunk_size]
@@ -33,10 +35,13 @@ def wp(speech):
         for c in chunk:
             s = s + abs(c)
         mean = s / chunk_size
-        if mean and prev_mean and mean > prev_mean * 10:
-            start_secs = i / frame_rate
-            print "i = %s, mean = %s, prev_mean = %s, start_secs = %.6f" % (i, mean, prev_mean, start_secs)
-        prev_mean = mean
+        chunkified_sound_info.append(mean)
+        # if mean and prev_mean and mean > prev_mean * 10:
+        #     start_secs = i / frame_rate
+        #     print "i = %s, mean = %s, prev_mean = %s, start_secs = %.6f" % (i, mean, prev_mean, start_secs)
+        # prev_mean = mean
+
+    print chunkified_sound_info
 
     numpy.set_printoptions(threshold='nan')
     #print sound_info
