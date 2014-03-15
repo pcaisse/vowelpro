@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 import numpy
 import wave
 
-def show_wave_n_spec(speech):
+def get_vowel_range(wav):
 
     # Open WAV file
-    spf = wave.open(speech, 'r')
+    spf = wave.open(wav, 'r')
 
     # Get WAV file data
     sample_width = spf.getsampwidth() # 2 (bytes)
@@ -19,7 +19,7 @@ def show_wave_n_spec(speech):
     f = spf.getframerate()
 
     max_val = max(signal)
-    bucket_size = 500
+    bucket_size = 500 # 1/32 of a second
     spike_factor = 10
 
     # Get only positive values
@@ -29,19 +29,26 @@ def show_wave_n_spec(speech):
     means = [int(numpy.mean(signal_pos[i:i+bucket_size])) for i in xrange(0, len(signal_pos), bucket_size)]
 
     # Get spikes
-    spike_indexes = [i*bucket_size for i in xrange(0, len(means)) if i > 0 and means[i-1]*spike_factor < means[i]]
+    spike_indexes = [i*bucket_size for i in xrange(0, len(means)) if i > 0 and means[i-1]*spike_factor < means[i]][:2]
 
-    print spike_indexes
+    # Get vowel range
+    range_between_spikes = spike_indexes[1] - spike_indexes[0]
+    one_third_of_range = int(range_between_spikes*1/3)
+    vowel_range = [spike_indexes[0] + one_third_of_range, spike_indexes[1] - one_third_of_range]
+
+    # Get vowel index
+    vowel_index = spike_indexes[0] + int(range_between_spikes*0.5)
+
+    print vowel_range
 
     # Plot graph
     plt.plot(signal)
-    # Plot spikes
-    for index in spike_indexes[:2]:
-        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='dashed')
+    # Plot vowel
+    for index in vowel_range:
+        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='yellow', linestyle='dashed')
+    plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='solid')
 
     plt.show()
     spf.close()
 
-fil = sys.argv[1]
-
-show_wave_n_spec(fil)
+get_vowel_range(sys.argv[1])
