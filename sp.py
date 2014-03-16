@@ -39,25 +39,32 @@ def get_vowel_range(wav):
     # Get vowel index
     vowel_index = spike_indexes[0] + int(range_between_spikes*0.5)
 
-    print vowel_range
+    fft = 10*np.log10(abs(np.fft.rfft(signal)))
 
-    fft = np.fft.fftn(signal)
-    print fft
+    plt.clf()
+    plt.plot(fft)
+    plt.show()
+
+    #print fft[vowel_index]
 
     # Plot waveform
-    plt.subplot(211)
-    plt.plot(signal)
+    #plt.subplot(211)
+    #plt.plot(signal)
 
     # Plot vowel
-    for index in vowel_range:
-        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='yellow', linestyle='dashed')
-    plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='solid')
+    # for index in vowel_range:
+    #     plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='yellow', linestyle='dashed')
+    # plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='solid')
 
-    # Plot spectrogram
-    plt.subplot(212)
-    spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
+    # Plot FFT
+    # plt.subplot(211)
+    # plt.plot(fft)
 
-    plt.show()
+    # # Plot spectrogram
+    # plt.subplot(212)
+    # spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
+
+    # plt.show()
     spf.close()
 
 get_vowel_range(sys.argv[1])
