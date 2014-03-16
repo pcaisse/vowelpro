@@ -2,7 +2,13 @@
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 import wave
+
+def smooth(x, window_len = 11):
+     s=np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+     w=np.ones(window_len,'d')
+     return np.convolve(w/w.sum(),s,mode='valid')
 
 def get_vowel_range(wav):
 
@@ -29,7 +35,8 @@ def get_vowel_range(wav):
     means = [int(np.mean(signal_pos[i:i+bucket_size])) for i in xrange(0, len(signal_pos), bucket_size)]
 
     # Get spikes
-    spike_indexes = [i*bucket_size for i in xrange(0, len(means)) if i > 0 and means[i-1]*spike_factor < means[i]][:2]
+    # TODO: Get only two largest spikes, not first two
+    spike_indexes = [i*bucket_size for i in xrange(0, len(means)) if i > 0 and means[i-1]*spike_factor < means[i]][:2] 
 
     # Get vowel range
     range_between_spikes = spike_indexes[1] - spike_indexes[0]
@@ -41,8 +48,13 @@ def get_vowel_range(wav):
 
     fft = 10*np.log10(abs(np.fft.rfft(signal)))
 
+    fft_smooth = smooth(fft)
+
     plt.clf()
+    plt.subplot(211)
     plt.plot(fft)
+    plt.subplot(212)
+    plt.plot(fft_smooth)
     plt.show()
 
     #print fft[vowel_index]
