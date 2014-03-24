@@ -4,18 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import wave
 
-def get_formants(fft, range_f1, range_f2, hz_per_marker):
-    range_f1[0] = range_f1[0]/hz_per_marker
-    range_f1[1] = range_f1[1]/hz_per_marker
-    range_f2[0] = range_f2[0]/hz_per_marker
-    range_f2[1] = range_f2[1]/hz_per_marker
-    print range_f1
-    print range_f2
-    f1 = (np.argmax(fft[range_f1[0]:range_f1[1]]) + range_f1[0]) * hz_per_marker
-    f2 = (np.argmax(fft[range_f2[0]:range_f2[1]]) + range_f2[0]) * hz_per_marker
-    print fft[range_f2[0]:range_f2[1]]
-    print (np.argmax(fft[range_f2[0]:range_f2[1]]) + range_f2[0])
-    return [f1, f2]
+def get_formant(fft, formant_range, hz_per_x):
+    for i in range(0, len(formant_range)):
+        formant_range[i] = formant_range[i] / hz_per_x
+    return (np.argmax(fft[formant_range[0]:formant_range[1]]) + formant_range[0]) * hz_per_x
 
 def get_vowel_range(wav):
 
@@ -53,52 +45,39 @@ def get_vowel_range(wav):
     # Get vowel index
     vowel_index = spike_indexes[0] + int(range_between_spikes*0.5)
 
+    # Get spectral slice for vowel
     vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
 
     fft = 10*np.log10(abs(np.fft.rfft(vowel_signal)))
 
-    #fft_smooth = smooth(fft)
+    hz_per_x = 8000 / float(len(fft))
 
-    #print peaks(fft, 1000)
-
-    print len(fft)
-
-    hz_per_marker = 8000 / float(len(fft))
-
-    formants = get_formants(fft, [500, 900], [1500, 1900], hz_per_marker)
+    f1 = get_formant(fft, [500, 900], hz_per_x)
+    f2 = get_formant(fft, [1500, 1900], hz_per_x)
 
     print 'f1: '
-    print formants[0]
+    print f1
     print 'f2: ' 
-    print formants[1]
-
-    plt.clf()
-    plt.subplot(211)
-    plt.plot(fft)
-    # plt.subplot(212)
-    # # plt.plot(fft_smooth)
-    plt.show()
-
-    #print fft[vowel_index]
-
-    # Plot waveform
-    #plt.subplot(211)
-    #plt.plot(signal)
-
-    # Plot vowel
-    # for index in vowel_range:
-    #     plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='yellow', linestyle='dashed')
-    # plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='solid')
+    print f2
 
     # Plot FFT
-    # plt.subplot(211)
-    # plt.plot(fft)
+    plt.subplot(311)
+    plt.plot(fft)
+
+    # Plot waveform
+    plt.subplot(312)
+    plt.plot(signal)
+
+    # Plot vowel
+    for index in vowel_range:
+        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='yellow', linestyle='dashed')
+    plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='solid')
 
     # # Plot spectrogram
-    # plt.subplot(212)
-    # spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
+    plt.subplot(313)
+    spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
 
-    # plt.show()
+    plt.show()
     spf.close()
 
 get_vowel_range(sys.argv[1])
