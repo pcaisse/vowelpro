@@ -2,13 +2,20 @@
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 import wave
 
-def smooth(x, window_len = 11):
-     s=np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
-     w=np.ones(window_len,'d')
-     return np.convolve(w/w.sum(),s,mode='valid')
+def get_formants(fft, range_f1, range_f2, hz_per_marker):
+    range_f1[0] = range_f1[0]/hz_per_marker
+    range_f1[1] = range_f1[1]/hz_per_marker
+    range_f2[0] = range_f2[0]/hz_per_marker
+    range_f2[1] = range_f2[1]/hz_per_marker
+    print range_f1
+    print range_f2
+    f1 = (np.argmax(fft[range_f1[0]:range_f1[1]]) + range_f1[0]) * hz_per_marker
+    f2 = (np.argmax(fft[range_f2[0]:range_f2[1]]) + range_f2[0]) * hz_per_marker
+    print fft[range_f2[0]:range_f2[1]]
+    print (np.argmax(fft[range_f2[0]:range_f2[1]]) + range_f2[0])
+    return [f1, f2]
 
 def get_vowel_range(wav):
 
@@ -46,15 +53,30 @@ def get_vowel_range(wav):
     # Get vowel index
     vowel_index = spike_indexes[0] + int(range_between_spikes*0.5)
 
-    fft = 10*np.log10(abs(np.fft.rfft(signal)))
+    vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
 
-    fft_smooth = smooth(fft)
+    fft = 10*np.log10(abs(np.fft.rfft(vowel_signal)))
+
+    #fft_smooth = smooth(fft)
+
+    #print peaks(fft, 1000)
+
+    print len(fft)
+
+    hz_per_marker = 8000 / float(len(fft))
+
+    formants = get_formants(fft, [500, 900], [1500, 1900], hz_per_marker)
+
+    print 'f1: '
+    print formants[0]
+    print 'f2: ' 
+    print formants[1]
 
     plt.clf()
     plt.subplot(211)
     plt.plot(fft)
-    plt.subplot(212)
-    plt.plot(fft_smooth)
+    # plt.subplot(212)
+    # # plt.plot(fft_smooth)
     plt.show()
 
     #print fft[vowel_index]
