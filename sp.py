@@ -17,6 +17,13 @@ def get_peaks_and_valleys(signal):
             valleys.append(i)
     return peaks, valleys
 
+def get_vowel_range(spike_indexes, num_segments, which_segment_to_use):
+    range_between_spikes = spike_indexes[1] - spike_indexes[0]
+    fraction_of_range = int(range_between_spikes / num_segments)
+    vowel_x1 = spike_indexes[0] + fraction_of_range
+    vowel_x2 = vowel_x1 + (fraction_of_range * which_segment_to_use)
+    return [vowel_x1, vowel_x2]
+
 def get_spike_indexes(signal):
     
     spike_indexes = []
@@ -52,7 +59,7 @@ def get_formant(fft, formant_range, hz_per_x):
         formant_range[i] = formant_range[i] / hz_per_x
     return (np.argmax(fft[formant_range[0]:formant_range[1]]) + formant_range[0]) * hz_per_x
 
-def get_vowel_range(wav):
+def rate_vowel(wav):
 
     # Open WAV file
     spf = wave.open(wav, 'r')
@@ -81,16 +88,12 @@ def get_vowel_range(wav):
     plt.plot(means)
 
     # Get vowel range
-    range_between_spikes = spike_indexes[1] - spike_indexes[0]
-    one_fifth_of_range = int(range_between_spikes*1/5)
-    vowel_x1 = spike_indexes[0] + one_fifth_of_range
-    vowel_x2 = vowel_x1 + one_fifth_of_range
-    print vowel_x1
-    print vowel_x2
-    vowel_range = [vowel_x1, vowel_x2]
+    vowel_range = get_vowel_range(spike_indexes, 5, 1)
+
+    print vowel_range
 
     # Get vowel index
-    vowel_index = vowel_x1 + ((vowel_x2 - vowel_x1) / 2)
+    vowel_index = vowel_range[0] + ((vowel_range[1] - vowel_range[0]) / 2)
 
     # Get spectral slice for vowel
     vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
@@ -127,4 +130,4 @@ def get_vowel_range(wav):
     plt.show()
     spf.close()
 
-get_vowel_range(sys.argv[1])
+rate_vowel(sys.argv[1])
