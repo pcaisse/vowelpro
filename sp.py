@@ -4,6 +4,49 @@ import matplotlib.pyplot as plt
 import numpy as np
 import wave
 
+def get_peaks_and_valleys(signal):
+    currVal, prevVal, nextVal = 0, 0, 0
+    peaks, valleys = [], []
+    for i in range(1, len(signal)-1):
+        currVal = signal[i]
+        prevVal = signal[i-1]
+        nextVal = signal[i+1]
+        if currVal > prevVal and currVal > nextVal:
+            peaks.append(i)
+        elif currVal < prevVal and currVal < nextVal:
+            valleys.append(i)
+    return peaks, valleys
+
+def get_spike_indexes(signal):
+    
+    spike_indexes = []
+    peaks, valleys = get_peaks_and_valleys(signal)
+
+    min_slope = 5
+    min_tail = 0.75
+
+    print 'Std: %d' % np.std(signal)
+    print 'Mean: %d' % np.mean(signal)
+
+    for i in range(0, len(valleys)):
+        x1 = valleys[i]
+        x2 = peaks[i]
+        y1 = signal[x1]
+        y2 = signal[x2]
+        delta_y = y2-y1
+        slope_to_peak = delta_y/(x2-x1)
+        if i != len(valleys)-1:
+            x3 = valleys[i+1]
+            y3 = signal[x3]
+            slope_to_next_valley = (y3-y2)/(x3-x2)
+            tail_long_enough = y2-y3 > min_tail*delta_y
+            spikey_enough = delta_y > np.std(signal)
+            if slope_to_peak > min_slope and abs(slope_to_next_valley) > min_slope and tail_long_enough and spikey_enough:
+                spike_indexes.append(x2)
+                print '(%d, %d)' % (x2, y2)
+
+    return spike_indexes
+
 def get_formant(fft, formant_range, hz_per_x):
     for i in range(0, len(formant_range)):
         formant_range[i] = formant_range[i] / hz_per_x
@@ -28,22 +71,26 @@ def get_vowel_range(wav):
     spike_factor = 10
 
     # Get only positive values
-    signal_pos = [signal[x] if signal[x] > 0 else 1 for x in xrange(0, len(signal))]
+    signal_pos = [signal[x] if signal[x] > 0 else 1 for x in range(0, len(signal))]
 
     # Get averages within buckets
-    means = [int(np.mean(signal_pos[i:i+bucket_size])) for i in xrange(0, len(signal_pos), bucket_size)]
+    means = [int(np.mean(signal_pos[i:i+bucket_size])) for i in range(0, len(signal_pos), bucket_size)]
 
-    # Get spikes
-    # TODO: Get only two largest spikes, not first two
-    spike_indexes = [i*bucket_size for i in xrange(0, len(means)) if i > 0 and means[i-1]*spike_factor < means[i]][:2] 
+    spike_indexes = [i*bucket_size for i in get_spike_indexes(means)]
+
+    plt.plot(means)
 
     # Get vowel range
     range_between_spikes = spike_indexes[1] - spike_indexes[0]
-    one_third_of_range = int(range_between_spikes*1/3)
-    vowel_range = [spike_indexes[0] + one_third_of_range, spike_indexes[1] - one_third_of_range]
+    one_fifth_of_range = int(range_between_spikes*1/5)
+    vowel_x1 = spike_indexes[0] + one_fifth_of_range
+    vowel_x2 = vowel_x1 + one_fifth_of_range
+    print vowel_x1
+    print vowel_x2
+    vowel_range = [vowel_x1, vowel_x2]
 
     # Get vowel index
-    vowel_index = spike_indexes[0] + int(range_between_spikes*0.5)
+    vowel_index = vowel_x1 + ((vowel_x2 - vowel_x1) / 2)
 
     # Get spectral slice for vowel
     vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
