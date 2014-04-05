@@ -35,22 +35,28 @@ def get_spike_indexes(signal):
     print 'Std: %d' % np.std(signal)
     print 'Mean: %d' % np.mean(signal)
 
+    print peaks
+    print valleys
+
     for i in range(0, len(valleys)):
         x1 = valleys[i]
-        x2 = peaks[i]
-        y1 = signal[x1]
-        y2 = signal[x2]
-        delta_y = y2-y1
-        slope_to_peak = delta_y/(x2-x1)
-        if i != len(valleys)-1:
-            x3 = valleys[i+1]
-            y3 = signal[x3]
-            slope_to_next_valley = (y3-y2)/(x3-x2)
-            tail_long_enough = y2-y3 > min_tail*delta_y
-            spikey_enough = delta_y > np.std(signal)
-            if slope_to_peak > min_slope and abs(slope_to_next_valley) > min_slope and tail_long_enough and spikey_enough:
-                spike_indexes.append(x2)
-                print '(%d, %d)' % (x2, y2)
+        if i < len(peaks):
+            x2 = peaks[i]
+            y1 = signal[x1]
+            y2 = signal[x2]
+            delta_y = y2-y1
+            slope_to_peak = delta_y/(x2-x1)
+            if i != len(valleys)-1:
+                x3 = valleys[i+1]
+                y3 = signal[x3]
+                slope_to_next_valley = (y3-y2)/(x3-x2)
+                tail_long_enough = y2-y3 > min_tail*delta_y
+                spikey_enough = delta_y > np.std(signal)
+                if slope_to_peak > min_slope and abs(slope_to_next_valley) > min_slope and tail_long_enough and spikey_enough:
+                    spike_indexes.append(x2)
+                    print '(%d, %d)' % (x2, y2)
+
+    print spike_indexes
 
     return spike_indexes
 
@@ -66,7 +72,7 @@ def rate_vowel(wav):
 
     # Get WAV file data
     sample_width = spf.getsampwidth() # 2 (bytes)
-    frame_rate = spf.getframerate() # 16000
+    frame_rate = spf.getframerate() # 16000 f/s
     
     # Extract raw audio from WAV file
     signal = spf.readframes(-1)
@@ -75,7 +81,6 @@ def rate_vowel(wav):
 
     max_val = max(signal)
     bucket_size = 500 # 1/32 of a second
-    spike_factor = 10
 
     # Get only positive values
     signal_pos = [signal[x] if signal[x] > 0 else 1 for x in range(0, len(signal))]
@@ -85,10 +90,8 @@ def rate_vowel(wav):
 
     spike_indexes = [i*bucket_size for i in get_spike_indexes(means)]
 
-    plt.plot(means)
-
     # Get vowel range
-    vowel_range = get_vowel_range(spike_indexes, 5, 1)
+    vowel_range = get_vowel_range(spike_indexes, 5, 1) if len(spike_indexes) == 2 else [spike_indexes[0], spike_indexes[0] + (frame_rate * 0.2)]
 
     print vowel_range
 
