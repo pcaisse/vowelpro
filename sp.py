@@ -5,6 +5,11 @@ import numpy as np
 import wave
 
 def get_peaks_and_valleys(signal):
+
+    """
+    Get peaks and valleys from signal as lists.
+    """
+
     currVal, prevVal, nextVal = 0, 0, 0
     peaks, valleys = [], []
     for i in range(1, len(signal)-1):
@@ -18,6 +23,11 @@ def get_peaks_and_valleys(signal):
     return peaks, valleys
 
 def get_vowel_range(spike_indexes, num_segments, which_segment_to_use):
+
+    """
+    Get a list with vowel range.
+    """
+
     range_between_spikes = spike_indexes[1] - spike_indexes[0]
     fraction_of_range = int(range_between_spikes / num_segments)
     vowel_x1 = spike_indexes[0] + fraction_of_range
@@ -25,6 +35,10 @@ def get_vowel_range(spike_indexes, num_segments, which_segment_to_use):
     return [vowel_x1, vowel_x2]
 
 def get_spike_indexes(signal):
+
+    """
+    Get indexes of spikes in signal.
+    """
     
     spike_indexes = []
     peaks, valleys = get_peaks_and_valleys(signal)
@@ -60,12 +74,99 @@ def get_spike_indexes(signal):
 
     return spike_indexes
 
-def get_formant(fft, formant_range, hz_per_x):
+def get_formant(fft, formant_range):
+
+    """
+    Get formant within a certain range.
+    """
+
+    max_hz = 8000
+    hz_per_x = max_hz / float(len(fft))
     for i in range(0, len(formant_range)):
         formant_range[i] = formant_range[i] / hz_per_x
     return (np.argmax(fft[formant_range[0]:formant_range[1]]) + formant_range[0]) * hz_per_x
 
-def rate_vowel(wav):
+def get_fft(signal):
+
+    """
+    Get signal in terms of frequency (Hz).
+    """
+
+    return 10*np.log10(abs(np.fft.rfft(signal)))
+
+def rate_vowel(vowel, wav):
+
+    # MODEL_VOWEL_DATA = { # Lower F1 = Higher Vowel; Lower F2 = Backer Vowel
+    #     'ii': [
+    #         # Men, Women
+    #         [342, 437],   # F1
+    #         [2322, 2761], # F2
+    #         [243, 306]    # Duration
+    #     ], 
+    #     'i': [
+    #         [427, 483],
+    #         [2034, 2365],
+    #         [192, 237]
+    #     ],
+    #     'ee': [
+    #         [476, 536,
+    #         [2089, 2530],
+    #         [267, 320]
+    #     ],
+    #     'e': [
+    #         [580, 731],
+    #         [1799, 2058],
+    #         [189, 254]
+    #     ],
+    #     'ae': [
+    #         [588, 669],
+    #         [1952, 2349],
+    #         [278, 332]
+    #     ],
+    #     'a': [
+    #         [768, 936],
+    #         [1333, 1551],
+    #         [267, 323]
+    #     ],
+    #     'c': [
+    #         [652, 781],
+    #         [997, 1136],
+    #         [283, 353]
+    #     ],
+    #     'o': [
+    #         [497, 555],
+    #         [910, 1035],
+    #         [265, 326]
+    #     ],
+    #     'u': [
+    #         [469, 519],
+    #         [1122, 1225],
+    #         [192, 249]
+    #     ],
+    #     'uu': [
+    #         [378, 459],
+    #         [997, 1105],
+    #         [237, 303]
+    #     ],
+    #     'v': [
+    #         [623, 753],
+    #         [1200, 1426],
+    #         [188, 226]
+    #     ],
+    #     'er': [
+    #         [474, 523],
+    #         [1379, 1588],
+    #         [263, 321]
+    #     ]
+    # }
+
+    # vowel_data = None
+
+    # try:
+    #     vowel_data = MODEL_VOWEL_DATA[vowel]
+    # except KeyError as e:
+    #     print 'Vowel not recognized.'
+    #     raise SystemExit
 
     # Open WAV file
     spf = wave.open(wav, 'r')
@@ -79,7 +180,6 @@ def rate_vowel(wav):
     signal = np.fromstring(signal, 'Int16')
     f = spf.getframerate()
 
-    max_val = max(signal)
     bucket_size = 500 # 1/32 of a second
 
     # Get only positive values
@@ -87,6 +187,10 @@ def rate_vowel(wav):
 
     # Get averages within buckets
     means = [int(np.mean(signal_pos[i:i+bucket_size])) for i in range(0, len(signal_pos), bucket_size)]
+
+    # Plot means
+    plt.subplot(411)
+    plt.plot(means)
 
     spike_indexes = [i*bucket_size for i in get_spike_indexes(means)]
 
@@ -101,12 +205,10 @@ def rate_vowel(wav):
     # Get spectral slice for vowel
     vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
 
-    fft = 10*np.log10(abs(np.fft.rfft(vowel_signal)))
+    fft = get_fft(vowel_signal)
 
-    hz_per_x = 8000 / float(len(fft))
-
-    f1 = get_formant(fft, [500, 900], hz_per_x)
-    f2 = get_formant(fft, [1500, 1900], hz_per_x)
+    f1 = get_formant(fft, [500, 900])
+    f2 = get_formant(fft, [1500, 1900])
 
     print 'f1: '
     print f1
@@ -114,23 +216,24 @@ def rate_vowel(wav):
     print f2
 
     # Plot FFT
-    plt.subplot(311)
+    plt.subplot(412)
     plt.plot(fft)
 
     # Plot waveform
-    plt.subplot(312)
+    plt.subplot(413)
     plt.plot(signal)
 
     # Plot vowel
+    max_val = max(signal)
     for index in vowel_range:
         plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='yellow', linestyle='dashed')
     plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='solid')
 
     # # Plot spectrogram
-    plt.subplot(313)
+    plt.subplot(414)
     spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
 
     plt.show()
     spf.close()
 
-rate_vowel(sys.argv[1])
+rate_vowel(sys.argv[1], sys.argv[2])
