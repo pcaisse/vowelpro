@@ -3,76 +3,47 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import wave
+from scipy.integrate import trapz
+from scipy.stats import mode
 
-def get_peaks_and_valleys(signal):
-
-    """
-    Get peaks and valleys from signal as lists.
-    """
-
-    currVal, prevVal, nextVal = 0, 0, 0
-    peaks, valleys = [], []
-    for i in range(1, len(signal)-1):
-        currVal = signal[i]
-        prevVal = signal[i-1]
-        nextVal = signal[i+1]
-        if currVal > prevVal and currVal > nextVal:
-            peaks.append(i)
-        elif currVal < prevVal and currVal < nextVal:
-            valleys.append(i)
-    return peaks, valleys
-
-def get_vowel_range(spike_indexes, num_segments, which_segment_to_use):
+def get_vowel_range(start_index, end_index, num_segments, which_segment_to_use):
 
     """
     Get a list with vowel range.
     """
 
-    range_between_spikes = spike_indexes[1] - spike_indexes[0]
+    range_between_spikes = end_index - start_index
     fraction_of_range = int(range_between_spikes / num_segments)
-    vowel_x1 = spike_indexes[0] + fraction_of_range
-    vowel_x2 = vowel_x1 + (fraction_of_range * which_segment_to_use)
+    vowel_x1 = start_index + fraction_of_range * which_segment_to_use
+    vowel_x2 = vowel_x1 + fraction_of_range
     return [vowel_x1, vowel_x2]
 
-def get_spike_indexes(signal):
+def get_humps(signal, floor):
 
     """
-    Get indexes of spikes in signal.
+    Get intensity humps.
     """
     
-    spike_indexes = []
-    peaks, valleys = get_peaks_and_valleys(signal)
+    humps = []
+    hump = None
 
-    min_slope = 5
-    min_tail = 0.75
+    for i in range(0, len(signal)-1):
+        y1 = signal[i]
+        y2 = signal[i+1]
+        start_hump = y1 <= floor and y2 > floor
+        end_hump = y1 > floor and y2 < floor
+        if start_hump:
+            hump = { 'start': i }
+        elif end_hump:
+            # Make sure we didn't start already in a hump.
+            if hump: 
+                start = hump['start']
+                hump['end'] = i
+                area = trapz(signal[start: i], dx=5)
+                hump['area'] = area
+                humps.append(hump)
 
-    print 'Std: %d' % np.std(signal)
-    print 'Mean: %d' % np.mean(signal)
-
-    print peaks
-    print valleys
-
-    for i in range(0, len(valleys)):
-        x1 = valleys[i]
-        if i < len(peaks):
-            x2 = peaks[i]
-            y1 = signal[x1]
-            y2 = signal[x2]
-            delta_y = y2-y1
-            slope_to_peak = delta_y/(x2-x1)
-            if i != len(valleys)-1:
-                x3 = valleys[i+1]
-                y3 = signal[x3]
-                slope_to_next_valley = (y3-y2)/(x3-x2)
-                tail_long_enough = y2-y3 > min_tail*delta_y
-                spikey_enough = delta_y > np.std(signal)
-                if slope_to_peak > min_slope and abs(slope_to_next_valley) > min_slope and tail_long_enough and spikey_enough:
-                    spike_indexes.append(x2)
-                    print '(%d, %d)' % (x2, y2)
-
-    print spike_indexes
-
-    return spike_indexes
+    return sorted(humps, key=lambda k: k['area'], reverse=True) 
 
 def get_formant(fft, formant_range):
 
@@ -93,6 +64,14 @@ def get_fft(signal):
     """
 
     return 10*np.log10(abs(np.fft.rfft(signal)))
+
+def bucket_index_to_sec(index, bucket_size, frame_rate):
+
+    """
+    Converts bucket index (index of array whose values have been mapped to buckets) to seconds.
+    """
+
+    return index*bucket_size/float(frame_rate)
 
 def rate_vowel(vowel, wav):
 
@@ -180,22 +159,37 @@ def rate_vowel(vowel, wav):
     signal = np.fromstring(signal, 'Int16')
     f = spf.getframerate()
 
-    bucket_size = 500 # 1/32 of a second
+    bucket_size = 200 # 1/32 of a second
 
     # Get only positive values
+    # TODO: Remove smallest x% of values
     signal_pos = [signal[x] if signal[x] > 0 else 1 for x in range(0, len(signal))]
 
     # Get averages within buckets
     means = [int(np.mean(signal_pos[i:i+bucket_size])) for i in range(0, len(signal_pos), bucket_size)]
 
+    std = np.std(means)
+    mean = np.mean(means)
+    print 'Std: %d' % std
+    print 'Mean: %d' % mean
+
     # Plot means
     plt.subplot(411)
     plt.plot(means)
-
-    spike_indexes = [i*bucket_size for i in get_spike_indexes(means)]
+    means_mode = mode(means)[0] * 3
+    humps = get_humps(means, means_mode)
+    print humps
+    main_hump = humps[0]
+    main_vowel_start = bucket_index_to_sec(main_hump['start'], bucket_size, frame_rate)
+    main_vowel_end = bucket_index_to_sec(main_hump['end'], bucket_size, frame_rate)
+    print main_vowel_start
+    print main_vowel_end
+    plt.plot([0, len(means)], [means_mode, means_mode], 'k-', lw=1, color='red', linestyle='solid')
 
     # Get vowel range
-    vowel_range = get_vowel_range(spike_indexes, 5, 1) if len(spike_indexes) == 2 else [spike_indexes[0], spike_indexes[0] + (frame_rate * 0.2)]
+    signal_main_hump_start = main_hump['start']*bucket_size
+    signal_main_hump_end = main_hump['end']*bucket_size
+    vowel_range = get_vowel_range(signal_main_hump_start, signal_main_hump_end, 5, 2)
 
     print vowel_range
 
@@ -215,21 +209,23 @@ def rate_vowel(vowel, wav):
     print 'f2: ' 
     print f2
 
-    # Plot FFT
-    plt.subplot(412)
-    plt.plot(fft)
-
     # Plot waveform
-    plt.subplot(413)
+    plt.subplot(412)
     plt.plot(signal)
 
-    # Plot vowel
+    # Plot vowel range
     max_val = max(signal)
+    plt.plot([signal_main_hump_start, signal_main_hump_start], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
+    plt.plot([signal_main_hump_end, signal_main_hump_end], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
     for index in vowel_range:
-        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=3, color='yellow', linestyle='dashed')
-    plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=3, color='red', linestyle='solid')
+        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=2, color='yellow', linestyle='dashed')
+    plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='solid')
 
-    # # Plot spectrogram
+    # Plot FFT
+    plt.subplot(413)
+    plt.plot(fft)
+
+    # Plot spectrogram
     plt.subplot(414)
     spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
 
