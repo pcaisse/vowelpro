@@ -162,34 +162,35 @@ def rate_vowel(vowel, wav):
     bucket_size = 200 # 1/32 of a second
 
     # Get only positive values
-    # TODO: Remove smallest x% of values
     signal_pos = [signal[x] if signal[x] > 0 else 1 for x in range(0, len(signal))]
 
-    # Get averages within buckets
-    means = [int(np.mean(signal_pos[i:i+bucket_size])) for i in range(0, len(signal_pos), bucket_size)]
+    # Get maxes within buckets
+    maxes = [max(signal_pos[i:i+bucket_size]) for i in range(0, len(signal_pos), bucket_size)]
 
-    std = np.std(means)
-    mean = np.mean(means)
+    std = np.std(maxes)
+    mean = np.mean(maxes)
+    quarter_std = std * 0.25
     print 'Std: %d' % std
     print 'Mean: %d' % mean
+    print '0.25 Std: %d' % quarter_std
 
-    # Plot means
+    # Plot maxes
     plt.subplot(411)
-    plt.plot(means)
-    means_mode = mode(means)[0] * 3
-    humps = get_humps(means, means_mode)
+    plt.plot(maxes)
+    floor = quarter_std
+    humps = get_humps(maxes, floor)
     print humps
     main_hump = humps[0]
     main_vowel_start = bucket_index_to_sec(main_hump['start'], bucket_size, frame_rate)
     main_vowel_end = bucket_index_to_sec(main_hump['end'], bucket_size, frame_rate)
     print main_vowel_start
     print main_vowel_end
-    plt.plot([0, len(means)], [means_mode, means_mode], 'k-', lw=1, color='red', linestyle='solid')
+    plt.plot([0, len(maxes)], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
 
     # Get vowel range
     signal_main_hump_start = main_hump['start']*bucket_size
     signal_main_hump_end = main_hump['end']*bucket_size
-    vowel_range = get_vowel_range(signal_main_hump_start, signal_main_hump_end, 5, 2)
+    vowel_range = get_vowel_range(signal_main_hump_start, signal_main_hump_end, 5, 3)
 
     print vowel_range
 
@@ -215,11 +216,13 @@ def rate_vowel(vowel, wav):
 
     # Plot vowel range
     max_val = max(signal)
-    plt.plot([signal_main_hump_start, signal_main_hump_start], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
-    plt.plot([signal_main_hump_end, signal_main_hump_end], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
+
+    vert_line_indexes = [signal_main_hump_start, signal_main_hump_end]
+    for index in vert_line_indexes:
+        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
+
     for index in vowel_range:
-        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=2, color='yellow', linestyle='dashed')
-    plt.plot([vowel_index, vowel_index], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='solid')
+        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
 
     # Plot FFT
     plt.subplot(413)
