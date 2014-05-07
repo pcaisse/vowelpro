@@ -38,7 +38,7 @@ def get_humps(signal, floor):
                 start = hump['start']
                 hump['end'] = i
                 hump_signal = signal[start:i] 
-                area = np.trapz([int(x) for x in hump_signal]) # TODO: Optimize this later
+                area = np.trapz(hump_signal)
                 hump['area'] = area
                 humps.append(hump)
 
@@ -164,7 +164,7 @@ def rate_vowel(vowel, wav):
     signal_pos = [signal[x] if signal[x] > 0 else 1 for x in range(0, len(signal))]
 
     # Get maxes within buckets
-    maxes = [max(signal_pos[i:i+bucket_size]) for i in range(0, len(signal_pos), bucket_size)]
+    maxes = [int(max(signal_pos[i:i+bucket_size])) for i in range(0, len(signal_pos), bucket_size)]
 
     std = np.std(maxes)
     mean = np.mean(maxes)
