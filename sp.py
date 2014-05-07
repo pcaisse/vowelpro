@@ -3,8 +3,6 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import wave
-from scipy.integrate import trapz
-from scipy.stats import mode
 
 def get_vowel_range(start_index, end_index, num_segments, which_segment_to_use):
 
@@ -39,7 +37,8 @@ def get_humps(signal, floor):
             if hump: 
                 start = hump['start']
                 hump['end'] = i
-                area = trapz(signal[start: i], dx=5)
+                hump_signal = signal[start:i] 
+                area = np.trapz([int(x) for x in hump_signal]) # TODO: Optimize this later
                 hump['area'] = area
                 humps.append(hump)
 
