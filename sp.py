@@ -44,14 +44,22 @@ def get_humps(signal, floor):
 
     return sorted(humps, key=lambda k: k['area'], reverse=True) 
 
+def get_hz_per_x(fft):
+
+    """
+    Get number of Hertz per x coordinate.
+    """
+
+    max_hz = 8000
+    return max_hz / float(len(fft))
+
 def get_formant(fft, formant_range):
 
     """
     Get formant within a certain range.
     """
 
-    max_hz = 8000
-    hz_per_x = max_hz / float(len(fft))
+    hz_per_x = get_hz_per_x(fft)
     for i in range(0, len(formant_range)):
         formant_range[i] = formant_range[i] / hz_per_x
     return (np.argmax(fft[formant_range[0]:formant_range[1]]) + formant_range[0]) * hz_per_x
@@ -74,7 +82,7 @@ def bucket_index_to_sec(index, bucket_size, frame_rate):
 
 def rate_vowel(vowel, wav):
 
-    # MODEL_VOWEL_DATA = { # Lower F1 = Higher Vowel; Lower F2 = Backer Vowel
+    MODEL_VOWEL_DATA = { # Lower F1 = Higher Vowel; Lower F2 = Backer Vowel
     #     'ii': [
     #         # Men, Women
     #         [342, 437],   # F1
@@ -96,11 +104,11 @@ def rate_vowel(vowel, wav):
     #         [1799, 2058],
     #         [189, 254]
     #     ],
-    #     'ae': [
-    #         [588, 669],
-    #         [1952, 2349],
-    #         [278, 332]
-    #     ],
+        'ae': {
+            'f1': [709, 669],
+            'f2': [1772, 2349],
+            'duration': [278, 332],
+        },
     #     'a': [
     #         [768, 936],
     #         [1333, 1551],
@@ -136,15 +144,13 @@ def rate_vowel(vowel, wav):
     #         [1379, 1588],
     #         [263, 321]
     #     ]
-    # }
+    }
 
-    # vowel_data = None
-
-    # try:
-    #     vowel_data = MODEL_VOWEL_DATA[vowel]
-    # except KeyError as e:
-    #     print 'Vowel not recognized.'
-    #     raise SystemExit
+    try:
+        vowel_data = MODEL_VOWEL_DATA[vowel]
+    except KeyError as e:
+        print 'Vowel not recognized.'
+        raise SystemExit
 
     # Open WAV file
     spf = wave.open(wav, 'r')
@@ -158,7 +164,7 @@ def rate_vowel(vowel, wav):
     signal = np.fromstring(signal, 'Int16')
     f = spf.getframerate()
 
-    bucket_size = 200 # 1/32 of a second
+    bucket_size = 200
 
     # Get only positive values
     signal_pos = [signal[x] if signal[x] > 0 else 1 for x in range(0, len(signal))]
@@ -182,8 +188,10 @@ def rate_vowel(vowel, wav):
     main_hump = humps[0]
     main_vowel_start = bucket_index_to_sec(main_hump['start'], bucket_size, frame_rate)
     main_vowel_end = bucket_index_to_sec(main_hump['end'], bucket_size, frame_rate)
+    duration = main_vowel_end - main_vowel_start
     print main_vowel_start
     print main_vowel_end
+    print duration
     plt.plot([0, len(maxes)], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
 
     # Get vowel range
@@ -216,8 +224,7 @@ def rate_vowel(vowel, wav):
     # Plot vowel range
     max_val = max(signal)
 
-    vert_line_indexes = [signal_main_hump_start, signal_main_hump_end]
-    for index in vert_line_indexes:
+    for index in [signal_main_hump_start, signal_main_hump_end]:
         plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
 
     for index in vowel_range:
@@ -225,7 +232,10 @@ def rate_vowel(vowel, wav):
 
     # Plot FFT
     plt.subplot(413)
-    plt.plot(fft)
+    hz_per_x = int(get_hz_per_x(fft))
+    fft_len = len(fft)
+    fft_x = [i*hz_per_x for i in xrange(fft_len)]
+    plt.plot(fft_x, fft)
 
     # Plot spectrogram
     plt.subplot(414)
