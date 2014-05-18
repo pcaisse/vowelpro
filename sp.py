@@ -166,11 +166,18 @@ def rate_vowel(vowel, wav):
 
     bucket_size = 200
 
+    # Get x-values for signal (in terms of seconds)
+    signal_len = len(signal)
+    total_duration_sec = signal_len / float(frame_rate)
+    sec_per_x = total_duration_sec / float(signal_len)
+    signal_x = [i * sec_per_x for i in xrange(signal_len)]
+
     # Get only positive values
-    signal_pos = [signal[x] if signal[x] > 0 else 1 for x in range(0, len(signal))]
+    signal_pos = [signal[x] if signal[x] > 0 else 1 for x in xrange(0, len(signal))]
 
     # Get maxes within buckets
-    maxes = [int(max(signal_pos[i:i+bucket_size])) for i in range(0, len(signal_pos), bucket_size)]
+    maxes = [int(max(signal_pos[i:i+bucket_size])) for i in xrange(0, len(signal_pos), bucket_size)]
+    maxes_x = [signal_x[i] for i in xrange(0, signal_len, bucket_size)]
 
     std = np.std(maxes)
     mean = np.mean(maxes)
@@ -181,7 +188,7 @@ def rate_vowel(vowel, wav):
 
     # Plot maxes
     plt.subplot(411)
-    plt.plot(maxes)
+    plt.plot(maxes_x, maxes)
     floor = quarter_std
     humps = get_humps(maxes, floor)
     print humps
@@ -192,7 +199,7 @@ def rate_vowel(vowel, wav):
     print main_vowel_start
     print main_vowel_end
     print duration
-    plt.plot([0, len(maxes)], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
+    #plt.plot([0, len(maxes)], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
 
     # Get vowel range
     signal_main_hump_start = main_hump['start']*bucket_size
@@ -219,22 +226,22 @@ def rate_vowel(vowel, wav):
 
     # Plot waveform
     plt.subplot(412)
-    plt.plot(signal)
+    plt.plot(signal_x, signal)
 
     # Plot vowel range
     max_val = max(signal)
 
-    for index in [signal_main_hump_start, signal_main_hump_end]:
-        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
+    # for index in [signal_main_hump_start, signal_main_hump_end]:
+    #     plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
 
-    for index in vowel_range:
-        plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
+    # for index in vowel_range:
+    #     plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
 
     # Plot FFT
-    plt.subplot(413)
+    plt.subplot(413) 
     hz_per_x = int(get_hz_per_x(fft))
     fft_len = len(fft)
-    fft_x = [i*hz_per_x for i in xrange(fft_len)]
+    fft_x = [i * hz_per_x for i in xrange(fft_len)]
     plt.plot(fft_x, fft)
 
     # Plot spectrogram
