@@ -16,7 +16,7 @@ def get_vowel_range(start_index, end_index, num_segments, which_segment_to_use):
     vowel_x2 = vowel_x1 + fraction_of_range
     return [vowel_x1, vowel_x2]
 
-def get_humps(signal, floor):
+def get_humps(signal_x, signal, floor):
 
     """
     Get intensity humps.
@@ -36,7 +36,9 @@ def get_humps(signal, floor):
             # Make sure we didn't start already in a hump.
             if hump: 
                 start = hump['start']
+                hump['start_sec'] = signal_x[start]
                 hump['end'] = i
+                hump['end_sec'] = signal_x[i]
                 hump_signal = signal[start:i] 
                 area = np.trapz(hump_signal)
                 hump['area'] = area
@@ -71,14 +73,6 @@ def get_fft(signal):
     """
 
     return 10*np.log10(abs(np.fft.rfft(signal)))
-
-def bucket_index_to_sec(index, bucket_size, frame_rate):
-
-    """
-    Converts bucket index (index of array whose values have been mapped to buckets) to seconds.
-    """
-
-    return index*bucket_size/float(frame_rate)
 
 def rate_vowel(vowel, wav):
 
@@ -190,16 +184,16 @@ def rate_vowel(vowel, wav):
     plt.subplot(411)
     plt.plot(maxes_x, maxes)
     floor = quarter_std
-    humps = get_humps(maxes, floor)
+    humps = get_humps(maxes_x, maxes, floor)
     print humps
     main_hump = humps[0]
-    main_vowel_start = bucket_index_to_sec(main_hump['start'], bucket_size, frame_rate)
-    main_vowel_end = bucket_index_to_sec(main_hump['end'], bucket_size, frame_rate)
-    duration = main_vowel_end - main_vowel_start
-    print main_vowel_start
-    print main_vowel_end
+    main_vowel_start_sec = main_hump['start_sec']
+    main_vowel_end_sec = main_hump['end_sec'] 
+    duration = main_vowel_end_sec - main_vowel_start_sec
+    print main_vowel_start_sec
+    print main_vowel_end_sec
     print duration
-    #plt.plot([0, len(maxes)], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
+    plt.plot([0, total_duration_sec], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
 
     # Get vowel range
     signal_main_hump_start = main_hump['start']*bucket_size
