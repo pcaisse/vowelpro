@@ -64,7 +64,12 @@ def get_formant(fft, formant_range):
     hz_per_x = get_hz_per_x(fft)
     for i in range(0, len(formant_range)):
         formant_range[i] = formant_range[i] / hz_per_x
-    return (np.argmax(fft[formant_range[0]:formant_range[1]]) + formant_range[0]) * hz_per_x
+    max_index = int(np.argmax(fft[formant_range[0]:formant_range[1]]) + formant_range[0])
+    max_val = max_index * hz_per_x
+    return {
+        'index': max_index,
+        'value': max_val
+    }
 
 def get_fft(signal):
 
@@ -210,25 +215,30 @@ def rate_vowel(vowel, wav):
 
     fft = get_fft(vowel_signal)
 
-    f1 = get_formant(fft, [500, 900])
-    f2 = get_formant(fft, [1500, 1900])
+    f1_min = 500
+    f1_max = 900
+    f1 = get_formant(fft, [f1_min, f1_max])
+    f2_min = 1500
+    f2_max = 1900
+    f2 = get_formant(fft, [f2_min, f2_max])
 
     print 'f1: '
-    print f1
+    print f1['value']
     print 'f2: ' 
-    print f2
+    print f2['value']
 
     # Plot waveform
     plt.subplot(412)
     plt.plot(signal_x, signal)
 
-    # Plot vowel range
     max_val = max(signal)
 
+    # Plot main hump
     for index in [signal_main_hump_start, signal_main_hump_end]:
         signal_x_val = signal_x[index]
         plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
 
+    # Plot vowel range
     for index in vowel_range:
         signal_x_val = signal_x[index]
         plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
@@ -239,6 +249,10 @@ def rate_vowel(vowel, wav):
     fft_len = len(fft)
     fft_x = [i * hz_per_x for i in xrange(fft_len)]
     plt.plot(fft_x, fft)
+
+    # Plot formants
+    for formant in [f1, f2]:
+        plt.plot(formant['value'], fft[formant['index']], marker='o', color='r')
 
     # Plot spectrogram
     plt.subplot(414)
