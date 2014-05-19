@@ -225,11 +225,13 @@ def rate_vowel(vowel, wav):
     # Plot vowel range
     max_val = max(signal)
 
-    # for index in [signal_main_hump_start, signal_main_hump_end]:
-    #     plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
+    for index in [signal_main_hump_start, signal_main_hump_end]:
+        signal_x_val = signal_x[index]
+        plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
 
-    # for index in vowel_range:
-    #     plt.plot([index, index], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
+    for index in vowel_range:
+        signal_x_val = signal_x[index]
+        plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
 
     # Plot FFT
     plt.subplot(413) 
