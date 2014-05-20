@@ -3,6 +3,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import wave
+from scipy.signal import firwin, lfilter
 
 def get_vowel_range(start_index, end_index, num_segments, which_segment_to_use):
 
@@ -104,9 +105,9 @@ def rate_vowel(vowel, wav):
     #         [189, 254]
     #     ],
         'ae': {
-            'f1': [709, 669],
-            'f2': [1772, 2349],
-            'duration': [278, 332],
+            'f1': [864, 692],
+            'f2': [1529, 1763],
+            'duration': [225, 237],
         },
     #     'a': [
     #         [768, 936],
@@ -186,7 +187,7 @@ def rate_vowel(vowel, wav):
     print '0.25 Std: %d' % quarter_std
 
     # Plot maxes
-    plt.subplot(411)
+    plt.subplot(511)
     plt.plot(maxes_x, maxes)
     floor = quarter_std
     humps = get_humps(maxes_x, maxes, floor)
@@ -228,7 +229,7 @@ def rate_vowel(vowel, wav):
     print f2['value']
 
     # Plot waveform
-    plt.subplot(412)
+    plt.subplot(512)
     plt.plot(signal_x, signal)
 
     max_val = max(signal)
@@ -244,18 +245,27 @@ def rate_vowel(vowel, wav):
         plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
 
     # Plot FFT
-    plt.subplot(413) 
+    plt.subplot(513) 
     hz_per_x = int(get_hz_per_x(fft))
     fft_len = len(fft)
     fft_x = [i * hz_per_x for i in xrange(fft_len)]
     plt.plot(fft_x, fft)
+
+    # Plot filtered FFT
+    N=10
+    Fc=40
+    Fs=1600
+    h=firwin( numtaps=N, cutoff=40, nyq=Fs/2)
+    fft_filtered=lfilter( h, 1.0, fft)
+    plt.subplot(514)
+    plt.plot(fft_x, fft_filtered)
 
     # Plot formants
     for formant in [f1, f2]:
         plt.plot(formant['value'], fft[formant['index']], marker='o', color='r')
 
     # Plot spectrogram
-    plt.subplot(414)
+    plt.subplot(515)
     spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
 
     plt.show()
