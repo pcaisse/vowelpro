@@ -4,6 +4,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import wave
 from scipy.signal import firwin, lfilter
+from xml.dom import minidom
+
+def load_vowel_data(xml_path, vowel):
+
+    """
+    Load vowel formant data from XML file into dict.
+    """
+
+    data = {}
+    xml = minidom.parse(xml_path)
+    formants = xml.getElementsByTagName('formant')
+    for f in formants:
+        v = f.attributes['vowel'].value
+        if vowel == v:
+            if vowel not in data.keys():
+                data['vowel'] = vowel
+            number = f.attributes['number'].value
+            data['f' + number] = f.childNodes[0].nodeValue
+
+    return data
 
 def get_vowel_range(start_index, end_index, num_segments, which_segment_to_use):
 
@@ -82,72 +102,9 @@ def get_fft(signal):
 
 def rate_vowel(vowel, wav):
 
-    MODEL_VOWEL_DATA = { # Lower F1 = Higher Vowel; Lower F2 = Backer Vowel
-    #     'ii': [
-    #         # Men, Women
-    #         [342, 437],   # F1
-    #         [2322, 2761], # F2
-    #         [243, 306]    # Duration
-    #     ], 
-    #     'i': [
-    #         [427, 483],
-    #         [2034, 2365],
-    #         [192, 237]
-    #     ],
-    #     'ee': [
-    #         [476, 536,
-    #         [2089, 2530],
-    #         [267, 320]
-    #     ],
-    #     'e': [
-    #         [580, 731],
-    #         [1799, 2058],
-    #         [189, 254]
-    #     ],
-        'ae': {
-            'f1': [864, 692],
-            'f2': [1529, 1763],
-            'duration': [225, 237],
-        },
-    #     'a': [
-    #         [768, 936],
-    #         [1333, 1551],
-    #         [267, 323]
-    #     ],
-    #     'c': [
-    #         [652, 781],
-    #         [997, 1136],
-    #         [283, 353]
-    #     ],
-    #     'o': [
-    #         [497, 555],
-    #         [910, 1035],
-    #         [265, 326]
-    #     ],
-    #     'u': [
-    #         [469, 519],
-    #         [1122, 1225],
-    #         [192, 249]
-    #     ],
-    #     'uu': [
-    #         [378, 459],
-    #         [997, 1105],
-    #         [237, 303]
-    #     ],
-    #     'v': [
-    #         [623, 753],
-    #         [1200, 1426],
-    #         [188, 226]
-    #     ],
-    #     'er': [
-    #         [474, 523],
-    #         [1379, 1588],
-    #         [263, 321]
-    #     ]
-    }
-
     try:
-        vowel_data = MODEL_VOWEL_DATA[vowel]
+        vowel_data = load_vowel_data('formants.xml', vowel)
+        print vowel_data
     except KeyError as e:
         print 'Vowel not recognized.'
         raise SystemExit
@@ -255,7 +212,7 @@ def rate_vowel(vowel, wav):
     N=10
     Fc=40
     Fs=1600
-    h=firwin( numtaps=N, cutoff=40, nyq=Fs/2)
+    h=firwin(numtaps=N, cutoff=Fc, nyq=Fs/2)
     fft_filtered=lfilter( h, 1.0, fft)
     plt.subplot(514)
     plt.plot(fft_x, fft_filtered)
