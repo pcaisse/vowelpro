@@ -6,6 +6,24 @@ import wave
 from scipy.signal import firwin, lfilter
 from xml.dom import minidom
 
+def get_peaks_and_valleys(signal):
+
+    """
+    Get peaks and valleys from signal as lists.
+    """
+
+    currVal, prevVal, nextVal = 0, 0, 0
+    peaks, valleys = [], []
+    for i in range(1, len(signal)-1):
+        currVal = signal[i]
+        prevVal = signal[i-1]
+        nextVal = signal[i+1]
+        if currVal > prevVal and currVal > nextVal:
+            peaks.append(i)
+        elif currVal < prevVal and currVal < nextVal:
+            valleys.append(i)
+    return peaks, valleys
+
 def load_vowel_data(xml_path, vowel):
 
     """
@@ -21,7 +39,7 @@ def load_vowel_data(xml_path, vowel):
             if vowel not in data.keys():
                 data['vowel'] = vowel
             number = f.attributes['number'].value
-            data['f' + number] = f.childNodes[0].nodeValue
+            data['f' + number] = int(f.childNodes[0].nodeValue)
 
     return data
 
@@ -76,21 +94,63 @@ def get_hz_per_x(fft):
     max_hz = 8000
     return max_hz / float(len(fft))
 
-def get_formant(fft, formant_range):
+def get_closest(list_of_nums, num):
 
     """
-    Get formant within a certain range.
+    Get index of number in list that is closest to a given input number.
+    """
+
+    # diff = {}
+    # for i, v in enumerate(list_of_nums):
+    #     diff[i] = abs(v - num)
+    # print diff
+    # sorted_diff = sorted(diff.values())
+    # print 'sorted_diff'
+    # print sorted_diff
+    # index = sorted_diff[0]
+    # return index
+    closest_val = min(list_of_nums, key=lambda x: abs(x - num))
+    print 'closest_val'
+    print closest_val
+    closest_val_index = list_of_nums.index(closest_val)
+    print 'closest_val_index'
+    print closest_val_index
+    return [closest_val_index, closest_val]
+
+def get_formants(fft, vowel_data):
+
+    """
+    Get F1 and F2 in signal.
     """
 
     hz_per_x = get_hz_per_x(fft)
-    for i in range(0, len(formant_range)):
-        formant_range[i] = formant_range[i] / hz_per_x
-    max_index = int(np.argmax(fft[formant_range[0]:formant_range[1]]) + formant_range[0])
-    max_val = max_index * hz_per_x
-    return {
-        'index': max_index,
-        'value': max_val
-    }
+    peaks = get_peaks_and_valleys(fft)[0]
+    peaks_in_hz = [p * hz_per_x for p in peaks]
+    print peaks_in_hz
+    f1_target, f2_target = vowel_data['f1'], vowel_data['f2']
+
+    print peaks
+    print 'targets'
+    print f1_target
+    print f2_target
+
+    f1_index, f1_value = get_closest(peaks_in_hz, f1_target)
+    f2_index, f2_value = get_closest(peaks_in_hz, f2_target)
+
+    print 'index'
+    print f1_index
+    print f2_index
+
+    return [
+        {
+            'index': peaks[f1_index],
+            'value': peaks[f1_index] * hz_per_x
+        },
+        {
+            'index': peaks[f2_index],
+            'value': peaks[f2_index] * hz_per_x
+        }
+    ]
 
 def get_fft(signal):
 
@@ -99,6 +159,18 @@ def get_fft(signal):
     """
 
     return 10*np.log10(abs(np.fft.rfft(signal)))
+
+def get_filtered_fft(fft):
+
+    """
+    Get low pass filtered signal.
+    """
+
+    N = 10
+    Fc = 40
+    Fs = 1600
+    h = firwin(numtaps=N, cutoff=Fc, nyq=Fs/2)
+    return lfilter(h, 1.0, fft)
 
 def rate_vowel(vowel, wav):
 
@@ -148,7 +220,6 @@ def rate_vowel(vowel, wav):
     plt.plot(maxes_x, maxes)
     floor = quarter_std
     humps = get_humps(maxes_x, maxes, floor)
-    print humps
     main_hump = humps[0]
     main_vowel_start_sec = main_hump['start_sec']
     main_vowel_end_sec = main_hump['end_sec'] 
@@ -172,13 +243,9 @@ def rate_vowel(vowel, wav):
     vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
 
     fft = get_fft(vowel_signal)
+    fft_filtered = get_filtered_fft(fft)
 
-    f1_min = 500
-    f1_max = 900
-    f1 = get_formant(fft, [f1_min, f1_max])
-    f2_min = 1500
-    f2_max = 1900
-    f2 = get_formant(fft, [f2_min, f2_max])
+    f1, f2 = get_formants(fft_filtered, vowel_data)
 
     print 'f1: '
     print f1['value']
@@ -209,11 +276,6 @@ def rate_vowel(vowel, wav):
     plt.plot(fft_x, fft)
 
     # Plot filtered FFT
-    N=10
-    Fc=40
-    Fs=1600
-    h=firwin(numtaps=N, cutoff=Fc, nyq=Fs/2)
-    fft_filtered=lfilter( h, 1.0, fft)
     plt.subplot(514)
     plt.plot(fft_x, fft_filtered)
 
