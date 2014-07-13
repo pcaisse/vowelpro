@@ -5,6 +5,7 @@ import numpy as np
 import wave
 from scipy.signal import firwin, lfilter
 from xml.dom import minidom
+import math
 
 def get_peaks_and_valleys(signal):
 
@@ -172,6 +173,24 @@ def get_filtered_fft(fft):
     h = firwin(numtaps=N, cutoff=Fc, nyq=Fs/2)
     return lfilter(h, 1.0, fft)
 
+def get_vowel_rating(f1, f2, vowel_data):
+
+    """
+    Get 1-10 rating for vowel (10 = best, 1 = worst).
+    """
+
+    # Determine how off the vowel is from model.
+
+    #rate = lambda x: math.log(x) + 10
+    rate = lambda x: 10 * math.pow(x, 2)
+    percent_off = lambda target, actual: math.fabs(target / float(actual) - 1)
+    
+    f1_percent_off, f2_percent_off = percent_off(vowel_data['f1'], f1), percent_off(vowel_data['f2'], f2) 
+    total_percent_off = f1_percent_off + f2_percent_off
+    print 'total percent off: %f' % total_percent_off
+
+    return str(int(round(rate(1 - total_percent_off)))) + '/10' 
+
 def rate_vowel(vowel, wav):
 
     try:
@@ -251,6 +270,10 @@ def rate_vowel(vowel, wav):
     print f1['value']
     print 'f2: ' 
     print f2['value']
+
+    rating = get_vowel_rating(f1['value'], f2['value'], vowel_data)
+    print 'rating: '
+    print rating
 
     # Plot waveform
     plt.subplot(512)
