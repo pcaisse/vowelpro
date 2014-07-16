@@ -6,24 +6,29 @@ import wave
 from scipy.signal import firwin, lfilter
 from xml.dom import minidom
 import math
+from scipy.ndimage import gaussian_filter1d
 
-def get_peaks_and_valleys(signal):
+DEBUG = True
+
+def print_debug(msg):
+    if DEBUG:
+        print msg
+
+def get_peaks(signal):
 
     """
-    Get peaks and valleys from signal as lists.
+    Get peak indexes and values from signal as list of tuples.
     """
 
     currVal, prevVal, nextVal = 0, 0, 0
-    peaks, valleys = [], []
-    for i in range(1, len(signal)-1):
+    peaks = []
+    for i in range(1, len(signal) - 1):
         currVal = signal[i]
-        prevVal = signal[i-1]
-        nextVal = signal[i+1]
+        prevVal = signal[i - 1]
+        nextVal = signal[i + 1]
         if currVal > prevVal and currVal > nextVal:
-            peaks.append(i)
-        elif currVal < prevVal and currVal < nextVal:
-            valleys.append(i)
-    return peaks, valleys
+            peaks.append((i, signal[i]))
+    return peaks
 
 def load_vowel_data(xml_path, vowel):
 
@@ -95,61 +100,42 @@ def get_hz_per_x(fft):
     max_hz = 8000
     return max_hz / float(len(fft))
 
-def get_closest(list_of_nums, num):
-
-    """
-    Get index of number in list that is closest to a given input number.
-    """
-
-    # diff = {}
-    # for i, v in enumerate(list_of_nums):
-    #     diff[i] = abs(v - num)
-    # print diff
-    # sorted_diff = sorted(diff.values())
-    # print 'sorted_diff'
-    # print sorted_diff
-    # index = sorted_diff[0]
-    # return index
-    closest_val = min(list_of_nums, key=lambda x: abs(x - num))
-    print 'closest_val'
-    print closest_val
-    closest_val_index = list_of_nums.index(closest_val)
-    print 'closest_val_index'
-    print closest_val_index
-    return [closest_val_index, closest_val]
-
-def get_formants(fft, vowel_data):
+def get_formants(fft):
 
     """
     Get F1 and F2 in signal.
     """
 
     hz_per_x = get_hz_per_x(fft)
-    peaks = get_peaks_and_valleys(fft)[0]
-    peaks_in_hz = [p * hz_per_x for p in peaks]
-    print peaks_in_hz
-    f1_target, f2_target = vowel_data['f1'], vowel_data['f2']
+    peaks = get_peaks(fft)
 
-    print peaks
-    print 'targets'
-    print f1_target
-    print f2_target
+    print_debug('peaks')
+    print_debug(peaks)
 
-    f1_index, f1_value = get_closest(peaks_in_hz, f1_target)
-    f2_index, f2_value = get_closest(peaks_in_hz, f2_target)
+    sorted_peaks = sorted(peaks, key=lambda x: x[1], reverse=True)
+    print_debug('sorted peaks')
+    print_debug(sorted_peaks)
 
-    print 'index'
-    print f1_index
-    print f2_index
+    peak1 = sorted_peaks[0]
+    peak2 = sorted_peaks[1]
+
+    f1_index = peak1[0]
+    f2_index = peak2[0]
+    f1_value = peak1[1]
+    f2_value = peak2[1]
+
+    print_debug('index')
+    print_debug(f1_index)
+    print_debug(f2_index)
 
     return [
         {
-            'index': peaks[f1_index],
-            'value': peaks[f1_index] * hz_per_x
+            'index': f1_index,
+            'value': f1_index * hz_per_x
         },
         {
-            'index': peaks[f2_index],
-            'value': peaks[f2_index] * hz_per_x
+            'index': f2_index,
+            'value': f2_index * hz_per_x
         }
     ]
 
@@ -159,7 +145,7 @@ def get_fft(signal):
     Get signal in terms of frequency (Hz).
     """
 
-    return 10*np.log10(abs(np.fft.rfft(signal)))
+    return 10 * np.log10(abs(np.fft.rfft(signal)))
 
 def get_filtered_fft(fft):
 
@@ -173,13 +159,16 @@ def get_filtered_fft(fft):
     h = firwin(numtaps=N, cutoff=Fc, nyq=Fs/2)
     return lfilter(h, 1.0, fft)
 
+def get_moving_avg(interval, window_size):
+
+    window = np.ones(int(window_size))/float(window_size)
+    return np.convolve(interval, window, 'same')
+
 def get_vowel_rating(f1, f2, vowel_data):
 
     """
     Get 1-10 rating for vowel (10 = best, 1 = worst).
     """
-
-    # Determine how off the vowel is from model.
 
     #rate = lambda x: math.log(x) + 10
     rate = lambda x: 10 * math.pow(x, 2)
@@ -187,17 +176,18 @@ def get_vowel_rating(f1, f2, vowel_data):
     
     f1_percent_off, f2_percent_off = percent_off(vowel_data['f1'], f1), percent_off(vowel_data['f2'], f2) 
     total_percent_off = f1_percent_off + f2_percent_off
-    print 'total percent off: %f' % total_percent_off
+    print_debug('total percent off: %f' % total_percent_off)
 
-    return str(int(round(rate(1 - total_percent_off)))) + '/10' 
+    rating = int(round(rate(1 - total_percent_off)))
+    return rating if rating > 0 else 1
 
 def rate_vowel(vowel, wav):
 
     try:
         vowel_data = load_vowel_data('formants.xml', vowel)
-        print vowel_data
+        print_debug(vowel_data)
     except KeyError as e:
-        print 'Vowel not recognized.'
+        print_debug('Vowel not recognized.')
         raise SystemExit
 
     # Open WAV file
@@ -230,9 +220,9 @@ def rate_vowel(vowel, wav):
     std = np.std(maxes)
     mean = np.mean(maxes)
     quarter_std = std * 0.25
-    print 'Std: %d' % std
-    print 'Mean: %d' % mean
-    print '0.25 Std: %d' % quarter_std
+    print_debug('Std: %d' % std)
+    print_debug('Mean: %d' % mean)
+    print_debug('0.25 Std: %d' % quarter_std)
 
     # Plot maxes
     plt.subplot(511)
@@ -243,9 +233,9 @@ def rate_vowel(vowel, wav):
     main_vowel_start_sec = main_hump['start_sec']
     main_vowel_end_sec = main_hump['end_sec'] 
     duration = main_vowel_end_sec - main_vowel_start_sec
-    print main_vowel_start_sec
-    print main_vowel_end_sec
-    print duration
+    print_debug(main_vowel_start_sec)
+    print_debug(main_vowel_end_sec)
+    print_debug(duration)
     plt.plot([0, total_duration_sec], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
 
     # Get vowel range
@@ -253,7 +243,7 @@ def rate_vowel(vowel, wav):
     signal_main_hump_end = main_hump['end']*bucket_size
     vowel_range = get_vowel_range(signal_main_hump_start, signal_main_hump_end, 5, 3)
 
-    print vowel_range
+    print_debug(vowel_range)
 
     # Get vowel index
     vowel_index = vowel_range[0] + ((vowel_range[1] - vowel_range[0]) / 2)
@@ -262,18 +252,18 @@ def rate_vowel(vowel, wav):
     vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
 
     fft = get_fft(vowel_signal)
-    fft_filtered = get_filtered_fft(fft)
+    fft_filtered = get_moving_avg(fft, 10)
 
-    f1, f2 = get_formants(fft_filtered, vowel_data)
+    f1, f2 = get_formants(fft_filtered)
 
-    print 'f1: '
-    print f1['value']
-    print 'f2: ' 
-    print f2['value']
+    print_debug('f1: ')
+    print_debug(f1['value'])
+    print_debug('f2: ' )
+    print_debug(f2['value'])
 
     rating = get_vowel_rating(f1['value'], f2['value'], vowel_data)
-    print 'rating: '
-    print rating
+    print_debug('rating: ')
+    print_debug('%s/10' % rating)
 
     # Plot waveform
     plt.subplot(512)
