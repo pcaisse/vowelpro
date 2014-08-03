@@ -6,7 +6,7 @@ import wave
 from scipy.signal import firwin, lfilter
 from xml.dom import minidom
 import math
-from scipy.ndimage import gaussian_filter1d
+from scikits.talkbox import lpc
 
 DEBUG = True
 
@@ -145,7 +145,7 @@ def get_fft(signal):
     Get signal in terms of frequency (Hz).
     """
 
-    return 10 * np.log10(abs(np.fft.rfft(signal)))
+    return 20 * np.log10(abs(np.fft.rfft(signal)))
 
 def get_filtered_fft(fft):
 
@@ -290,7 +290,27 @@ def rate_vowel(vowel, wav):
 
     # Plot filtered FFT
     plt.subplot(514)
-    plt.plot(fft_x, fft_filtered)
+    x = vowel_signal
+    nfft = len(x)
+    x1 = x * np.hamming(nfft)
+    x1 = lfilter([1., 0.63], 1, x1)
+    A, e, k = lpc(x1, 8)
+    print A
+    rts = np.roots(A)
+    rts = [r for r in rts if np.imag(r) >= 0]
+    print 'roots'
+    print rts
+    angz = np.arctan2(np.imag(rts),np.real(rts))
+    print 'angz'
+    print angz
+    angz2 = angz * (f/(2*math.pi))
+    print 'angz2'
+    print angz2
+    lpc_logmag = -20 * np.log10 ( abs( np.fft.rfft( A ) ) )
+    lpc_logmag = lpc_logmag[1:nfft/2+1]
+    print lpc_logmag
+    #plt.plot(fft_x, fft_filtered)
+    plt.plot([i for i in lpc_logmag], lpc_logmag)
 
     # Plot formants
     for formant in [f1, f2]:
@@ -300,7 +320,7 @@ def rate_vowel(vowel, wav):
     plt.subplot(515)
     spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
 
-    plt.show()
+    #plt.show()
     spf.close()
 
 rate_vowel(sys.argv[1], sys.argv[2])
