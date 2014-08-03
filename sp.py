@@ -91,22 +91,21 @@ def get_humps(signal_x, signal, floor):
 
     return sorted(humps, key=lambda k: k['area'], reverse=True) 
 
-def get_hz_per_x(fft):
+def get_hz_per_x(fft, Fs):
 
     """
     Get number of Hertz per x coordinate.
     """
 
-    max_hz = 8000
-    return max_hz / float(len(fft))
+    return Fs / float(len(fft))
 
-def get_formants(fft):
+def get_formants(fft, Fs):
 
     """
     Get F1 and F2 in signal.
     """
 
-    hz_per_x = get_hz_per_x(fft)
+    hz_per_x = get_hz_per_x(fft, Fs)
     peaks = get_peaks(fft)
 
     print_debug('peaks')
@@ -147,15 +146,12 @@ def get_fft(signal):
 
     return 10 * np.log10(abs(np.fft.rfft(signal)))
 
-def get_filtered_fft(fft):
+def get_filtered_fft(fft, N, Fc, Fs):
 
     """
     Get low pass filtered signal.
     """
 
-    N = 10
-    Fc = 40
-    Fs = 1600
     h = firwin(numtaps=N, cutoff=Fc, nyq=Fs/2)
     return lfilter(h, 1.0, fft)
 
@@ -200,7 +196,7 @@ def rate_vowel(vowel, wav):
     # Extract raw audio from WAV file
     signal = spf.readframes(-1)
     signal = np.fromstring(signal, 'Int16')
-    f = spf.getframerate()
+    Fs = spf.getframerate()
 
     bucket_size = 200
 
@@ -252,9 +248,10 @@ def rate_vowel(vowel, wav):
     vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
 
     fft = get_fft(vowel_signal)
-    fft_filtered = get_moving_avg(fft, 10)
+    #fft_filtered = get_moving_avg(fft, 10)
+    fft_filtered = get_filtered_fft(fft, 8, 40, Fs)
 
-    f1, f2 = get_formants(fft_filtered)
+    f1, f2 = get_formants(fft_filtered, Fs)
 
     print_debug('f1: ')
     print_debug(f1['value'])
@@ -283,7 +280,7 @@ def rate_vowel(vowel, wav):
 
     # Plot FFT
     plt.subplot(513) 
-    hz_per_x = int(get_hz_per_x(fft))
+    hz_per_x = int(get_hz_per_x(fft, Fs))
     fft_len = len(fft)
     fft_x = [i * hz_per_x for i in xrange(fft_len)]
     plt.plot(fft_x, fft)
@@ -298,7 +295,7 @@ def rate_vowel(vowel, wav):
 
     # Plot spectrogram
     plt.subplot(515)
-    spectrogram = plt.specgram(signal, Fs = f, scale_by_freq=True, sides='default')
+    spectrogram = plt.specgram(signal, Fs = Fs, scale_by_freq=True, sides='default')
 
     plt.show()
     spf.close()
