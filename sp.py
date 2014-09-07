@@ -4,9 +4,34 @@ import matplotlib.pyplot as plt
 import numpy as np
 import wave
 import math
+from scipy import stats
 from scipy.signal import lfilter, hamming
 from scikits.talkbox import lpc
 
+
+FORMANTS = {
+    # See "Acoustic characteristics of American English vowels" by Hillenbrand et al.
+    # http://homepages.wmich.edu/~hillenbr/Papers/HillenbrandGettyClarkWheeler.pdf
+    "ae": [744, 1869],
+    "ahr": [721, 1227],
+    "aw": [804, 1600],
+    "ay0": [777, 1481],
+    "ayv": [813, 1462],
+    "e": [653, 1826],
+    "eyc": [584, 2017],
+    "i": [517, 1933],
+    "iw": [425, 1843],
+    "iyc": [422, 2322],
+    "o": [822, 1334],
+    "oh": [755, 1177],
+    "ohr": [548, 925],
+    "owc": [625, 1267],
+    "owr": [533, 906],
+    "u": [552, 1425],
+    "uh": [702, 1447],
+    "uwc": [456, 1373],
+    "uwf": [452, 1787],
+}
 
 
 class Signal():
@@ -107,7 +132,7 @@ class Signal():
         Get vowel range for main hump.
         """
 
-        return self.get_vowel_range(main_hump['start'], main_hump['end'], 3, 1)
+        return self.get_vowel_range(main_hump['start'], main_hump['end'], 5, 3)
 
 
     def get_main_vowel_signal(self):
@@ -213,9 +238,9 @@ def get_formants(x, fs):
     N = len(x)
     w = np.hamming(N)
 
-    # Apply window and high pass filter.
+    # Apply window and pre-emphasis filter.
     x1 = x * w
-    x1 = lfilter([1], [1., 0.63], x1)
+    x1 = lfilter([1], [1., -0.63], x1)
 
     # Get LPC.
     ncoeff = 2 + fs / 1000
@@ -234,7 +259,10 @@ def get_formants(x, fs):
     return frqs
 
 
-def rate_vowel(file_path):
+def rate_vowel(file_path, vowel):
+
+    if not vowel in FORMANTS:
+        raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
 
     # Read from file.
     spf = wave.open(file_path, 'r')
@@ -246,15 +274,17 @@ def rate_vowel(file_path):
     signal = Signal(signal, fs)
     vowel_signal = signal.get_main_vowel_signal()    
 
-    formants = get_formants(vowel_signal, fs)[1:4]
+    formants = get_formants(vowel_signal, fs)[1:4] # F1, F2, F3
+    print 'formants: %s' % formants 
+
     z = bark_diff(formants)
     front_back = z[2] - z[1]
     print 'front-back: %f' % front_back
     height = z[2] - z[0]
     print 'height: %f' % height
 
-    signal.plot()
+    # signal.plot()
     
 
-rate_vowel(sys.argv[1])
+rate_vowel(sys.argv[1], sys.argv[2])
 
