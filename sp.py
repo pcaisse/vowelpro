@@ -10,29 +10,54 @@ from scikits.talkbox import lpc
 
 
 FORMANTS = {
-    # See "Acoustic characteristics of American English vowels" by Hillenbrand et al.
-    # http://homepages.wmich.edu/~hillenbr/Papers/HillenbrandGettyClarkWheeler.pdf
-    "ae": [744, 1869],
-    "ahr": [721, 1227],
-    "aw": [804, 1600],
-    "ay0": [777, 1481],
-    "ayv": [813, 1462],
-    "e": [653, 1826],
-    "eyc": [584, 2017],
-    "i": [517, 1933],
-    "iw": [425, 1843],
-    "iyc": [422, 2322],
-    "o": [822, 1334],
-    "oh": [755, 1177],
-    "ohr": [548, 925],
-    "owc": [625, 1267],
-    "owr": [533, 906],
-    "u": [552, 1425],
-    "uh": [702, 1447],
-    "uwc": [456, 1373],
-    "uwf": [452, 1787],
+    # See: Dialect variation and formant frequency: The American English vowels revisited
+    #      Robert Hagiwara
+    # http://www.docin.com/p-101062744.html
+    'i': {
+        'M': [291, 2338, 2920],
+        'F': [362, 2897, 3495]
+    },      
+    'I': {
+        'M': [418, 1807, 2589],
+        'F': [467, 2400, 3187]
+    },     
+    'e': {
+        'M': [403, 2059, 2690],
+        'F': [440, 2655, 3252]
+    },     
+    'E': {
+        'M': [529, 1670, 2528],
+        'F': [808, 2163, 3065]
+    },     
+    'ae': {
+        'M': [685, 1601, 2524],
+        'F': [1017, 1810, 2826]
+    },
+    'u': {
+        'M': [323, 1417, 2399],
+        'F': [395, 1700, 2866]
+    },     
+    'U': {
+        'M': [441, 1366, 2446],
+        'F': [486, 1665, 2926]
+    },     
+    'o': {
+        'M': [437, 1188, 2430],
+        'F': [516, 1391, 2904]
+    },     
+    'a': {
+        'M': [710, 1221, 2405],
+        'F': [997, 1390, 2743]
+    },     
+    '^': {
+        'M': [574, 1415, 2496],
+        'F': [847, 1753, 2989]
+    },     
+    'r': {
+        'M': [429, 1362, 1679],
+        'F': [477, 1558, 1995]
+    },     
 }
-
 
 class Signal():
 
@@ -211,7 +236,7 @@ def bark_diff(formants):
     Get Bark-converted values (Z) for vowel formants.
     """
 
-    return [26.81 / (1 + 1960 / f) - 0.53 for f in formants]
+    return [26.81 / (1 + 1960 / float(f)) - 0.53 for f in formants]
 
 
 def get_fft(signal):
@@ -258,8 +283,42 @@ def get_formants(x, fs):
 
     return frqs
 
+def get_vowel_score(sample_formants, model_formants):
 
-def rate_vowel(file_path, vowel):
+    def front_back(z):
+        return z[2] - z[1]
+
+    def height(z):
+        return z[2] - z[0]
+
+    # Calculate Z-values. 
+    sample_z = bark_diff(sample_formants)
+    sample_front_back, sample_height = front_back(sample_z), height(sample_z)
+    
+    model_z = bark_diff(model_formants)
+    model_front_back, model_height = front_back(model_z), height(model_z)
+
+    print 'sample_z: %s' % sample_z
+    print 'model_z: %s' % model_z
+
+    print 'front-back = user: %f, model: %f' % (sample_front_back, model_front_back)
+    print 'height = user: %f, model: %f' % (sample_height, model_height)
+
+    # Calculate percent correct for front-back and height dimensions.
+    front_back_per = sample_front_back / model_front_back if model_front_back > sample_front_back else model_front_back / sample_front_back
+    height_per = sample_height / model_height if model_height > sample_height else model_height / sample_height
+
+    print "front_back_per: %f" % front_back_per
+    print "height_per: %f" % height_per
+
+    # Return the average of the percentages for the two dimensions as an integer.
+    return int(np.mean([front_back_per, height_per]) * 100)
+
+
+def rate_vowel(file_path, sex, vowel):
+
+    if not sex in ['M', 'F']:
+        raise Exception('Sex must be M or F.')
 
     if not vowel in FORMANTS:
         raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
@@ -277,14 +336,14 @@ def rate_vowel(file_path, vowel):
     formants = get_formants(vowel_signal, fs)[1:4] # F1, F2, F3
     print 'formants: %s' % formants 
 
-    z = bark_diff(formants)
-    front_back = z[2] - z[1]
-    print 'front-back: %f' % front_back
-    height = z[2] - z[0]
-    print 'height: %f' % height
+    model_formants = FORMANTS[vowel][sex]
+    print 'model formants: %s' % model_formants 
+    score = get_vowel_score(formants, model_formants)
+
+    print score
 
     # signal.plot()
     
 
-rate_vowel(sys.argv[1], sys.argv[2])
+rate_vowel(sys.argv[1], sys.argv[2], sys.argv[3])
 
