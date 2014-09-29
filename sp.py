@@ -6,6 +6,7 @@ import wave
 import math
 from scipy import stats
 from scipy.signal import lfilter, hamming
+from scipy.stats import pearsonr
 from scikits.talkbox import lpc
 
 
@@ -58,6 +59,7 @@ FORMANTS = {
         'F': [477, 1558, 1995]
     },     
 }
+
 
 class Signal():
 
@@ -263,9 +265,11 @@ def get_formants(x, fs):
     N = len(x)
     w = np.hamming(N)
 
-    # Apply window and pre-emphasis filter.
+    # Apply window.
     x1 = x * w
-    x1 = lfilter([1], [1., -0.63], x1)
+
+    # Apply pre-emphasis filter.
+    # x1 = lfilter([1.0], [1.0, -0.63], x1)
 
     # Get LPC.
     ncoeff = 2 + fs / 1000
@@ -283,7 +287,12 @@ def get_formants(x, fs):
 
     return frqs
 
-def get_vowel_score(sample_formants, model_formants):
+
+def get_dimensions(z_values):
+
+    """
+    Get front-back and height dimensions for Bark difference metric.
+    """
 
     def front_back(z):
         return z[2] - z[1]
@@ -291,12 +300,27 @@ def get_vowel_score(sample_formants, model_formants):
     def height(z):
         return z[2] - z[0]
 
-    # Calculate Z-values. 
-    sample_z = bark_diff(sample_formants)
-    sample_front_back, sample_height = front_back(sample_z), height(sample_z)
-    
-    model_z = bark_diff(model_formants)
-    model_front_back, model_height = front_back(model_z), height(model_z)
+    return front_back(z_values), height(z_values)
+
+
+def calc_percent_correct(actual, desired):
+
+    # Account for values that overshoot the desired value.
+    # eg) 750/740 -> 730/740
+    if actual > desired:
+        actual -= (actual - desired) * 2
+
+    return actual / desired
+
+
+def get_vowel_score(sample_z, model_z):
+
+    """
+    Return vowel score (0-100) as well as some feedback/tips on their pronunciation.
+    """
+
+    sample_front_back, sample_height = get_dimensions(sample_z)
+    model_front_back, model_height = get_dimensions(model_z)
 
     print 'sample_z: %s' % sample_z
     print 'model_z: %s' % model_z
@@ -305,14 +329,81 @@ def get_vowel_score(sample_formants, model_formants):
     print 'height = user: %f, model: %f' % (sample_height, model_height)
 
     # Calculate percent correct for front-back and height dimensions.
-    front_back_per = sample_front_back / model_front_back if model_front_back > sample_front_back else model_front_back / sample_front_back
-    height_per = sample_height / model_height if model_height > sample_height else model_height / sample_height
+    front_back_per = calc_percent_correct(sample_front_back, model_front_back)
+    height_per = calc_percent_correct(sample_height, model_height)
 
     print "front_back_per: %f" % front_back_per
     print "height_per: %f" % height_per
 
-    # Return the average of the percentages for the two dimensions as an integer.
-    return int(np.mean([front_back_per, height_per]) * 100)
+    mean_per = np.mean([front_back_per, height_per])
+    total_score = int(mean_per * 100)
+
+    feedback = None
+
+    if mean_per < 0.5:
+        feedback = ("Hmmm... Something may have gone wrong. Please make sure "
+                    "you are recording the correct vowel and that there is not "
+                    "too much background noise during recording.")
+    else: 
+        if mean_per >= 0.9:
+            feedback = 'Excellent!'
+        else:
+            encouragement = 'Good try!'
+
+            if mean_per >= 0.8:
+                encouragement = 'Very nice!'
+            elif mean_per >= 0.75:
+                encouragement = 'Good!'
+
+            front_back_cue = 'forward' if sample_front_back > model_front_back else 'backward'
+            height_cue = 'closing' if sample_height > model_height else 'opening'
+        
+            feedback = ("%s To pronounce your vowel even better, try moving your tongue farther %s "
+                        "and %s your mouth more.") % (encouragement, front_back_cue, height_cue)
+
+    return total_score, feedback
+
+
+
+def get_rms_diff(a, b):
+
+    """
+    Measure the average difference of the curves.
+
+    See: http://programmers.stackexchange.com/questions/100303/correlation-between-two-curves
+    """
+
+    rmsdiff = 0
+    for (x, y) in zip(a, b):
+        rmsdiff += (x - y) ** 2  # NOTE: overflow danger if the vectors are long!
+    rmsdiff = math.sqrt(rmsdiff / min(len(a), len(b)))    
+    return rmsdiff
+
+
+def get_z_values(formants, model_formants):
+
+    """
+    Calculate z-values both assuming F0 was found and assuming it was missed. 
+    Compare them to the model and use whichever one is more similar to the model.
+    """
+
+    model_z = bark_diff(model_formants)
+
+    sample_z1 = bark_diff(formants[:3]) # Assumes F0 was missed.
+    sample_z2 = bark_diff(formants[1:4]) # Assumes F0 was found.
+    
+    rms_diff1 = get_rms_diff(sample_z1, model_z)
+    rms_diff2 = get_rms_diff(sample_z2, model_z)
+
+    print "rms_diff1: %f" % rms_diff1
+    print "rms_diff2: %f" % rms_diff2
+
+    # Guess which of the two ranges of formants actually represents F1, F2, F3
+    # and use that. This is needed because F0 is often missed by the LPC analysis.
+    if rms_diff1 < rms_diff2:
+        return sample_z1, model_z
+
+    return sample_z2, model_z
 
 
 def rate_vowel(file_path, sex, vowel):
@@ -323,7 +414,7 @@ def rate_vowel(file_path, sex, vowel):
     if not vowel in FORMANTS:
         raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
 
-    # Read from file.
+    # Read signal from file.
     spf = wave.open(file_path, 'r')
     fs = spf.getframerate()
     signal = spf.readframes(-1)
@@ -333,12 +424,15 @@ def rate_vowel(file_path, sex, vowel):
     signal = Signal(signal, fs)
     vowel_signal = signal.get_main_vowel_signal()    
 
-    formants = get_formants(vowel_signal, fs)[1:4] # F1, F2, F3
+    formants = get_formants(vowel_signal, fs)[:4]
     print 'formants: %s' % formants 
 
     model_formants = FORMANTS[vowel][sex]
-    print 'model formants: %s' % model_formants 
-    score = get_vowel_score(formants, model_formants)
+    print 'model formants: %s' % model_formants
+
+    sample_z, model_z = get_z_values(formants, model_formants)
+
+    score = get_vowel_score(sample_z, model_z)
 
     print score
 
