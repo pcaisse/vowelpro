@@ -3,140 +3,243 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import wave
-from scipy.signal import firwin, lfilter
-from xml.dom import minidom
 import math
-from scipy.ndimage import gaussian_filter1d
+from scipy import stats
+from scipy.signal import lfilter, hamming
+from scipy.stats import pearsonr
+from scikits.talkbox import lpc
 
-DEBUG = True
 
-def print_debug(msg):
-    if DEBUG:
-        print msg
+FORMANTS = {
+    # See: Dialect variation and formant frequency: The American English vowels revisited
+    #      Robert Hagiwara
+    # http://www.docin.com/p-101062744.html
+    'i': {
+        'M': [291, 2338, 2920],
+        'F': [362, 2897, 3495]
+    },      
+    'I': {
+        'M': [418, 1807, 2589],
+        'F': [467, 2400, 3187]
+    },     
+    'e': {
+        'M': [403, 2059, 2690],
+        'F': [440, 2655, 3252]
+    },     
+    'E': {
+        'M': [529, 1670, 2528],
+        'F': [808, 2163, 3065]
+    },     
+    'ae': {
+        'M': [685, 1601, 2524],
+        'F': [1017, 1810, 2826]
+    },
+    'u': {
+        'M': [323, 1417, 2399],
+        'F': [395, 1700, 2866]
+    },     
+    'U': {
+        'M': [441, 1366, 2446],
+        'F': [486, 1665, 2926]
+    },     
+    'o': {
+        'M': [437, 1188, 2430],
+        'F': [516, 1391, 2904]
+    },     
+    'a': {
+        'M': [710, 1221, 2405],
+        'F': [997, 1390, 2743]
+    },     
+    '^': {
+        'M': [574, 1415, 2496],
+        'F': [847, 1753, 2989]
+    },     
+    'r': {
+        'M': [429, 1362, 1679],
+        'F': [477, 1558, 1995]
+    },     
+}
 
-def get_peaks(signal):
 
-    """
-    Get peak indexes and values from signal as list of tuples.
-    """
-
-    currVal, prevVal, nextVal = 0, 0, 0
-    peaks = []
-    for i in range(1, len(signal) - 1):
-        currVal = signal[i]
-        prevVal = signal[i - 1]
-        nextVal = signal[i + 1]
-        if currVal > prevVal and currVal > nextVal:
-            peaks.append((i, signal[i]))
-    return peaks
-
-def load_vowel_data(xml_path, vowel):
-
-    """
-    Load vowel formant data from XML file into dict.
-    """
-
-    data = {}
-    xml = minidom.parse(xml_path)
-    formants = xml.getElementsByTagName('formant')
-    for f in formants:
-        v = f.attributes['vowel'].value
-        if vowel == v:
-            if vowel not in data.keys():
-                data['vowel'] = vowel
-            number = f.attributes['number'].value
-            data['f' + number] = int(f.childNodes[0].nodeValue)
-
-    return data
-
-def get_vowel_range(start_index, end_index, num_segments, which_segment_to_use):
-
-    """
-    Get a list with vowel range.
-    """
-
-    range_between_spikes = end_index - start_index
-    fraction_of_range = int(range_between_spikes / num_segments)
-    vowel_x1 = start_index + fraction_of_range * which_segment_to_use
-    vowel_x2 = vowel_x1 + fraction_of_range
-    return [vowel_x1, vowel_x2]
-
-def get_humps(signal_x, signal, floor):
-
-    """
-    Get intensity humps.
-    """
-    
-    humps = []
-    hump = None
-
-    for i in range(0, len(signal)-1):
-        y1 = signal[i]
-        y2 = signal[i+1]
-        start_hump = y1 <= floor and y2 > floor
-        end_hump = y1 > floor and y2 < floor
-        if start_hump:
-            hump = { 'start': i }
-        elif end_hump:
-            # Make sure we didn't start already in a hump.
-            if hump: 
-                start = hump['start']
-                hump['start_sec'] = signal_x[start]
-                hump['end'] = i
-                hump['end_sec'] = signal_x[i]
-                hump_signal = signal[start:i] 
-                area = np.trapz(hump_signal)
-                hump['area'] = area
-                humps.append(hump)
-
-    return sorted(humps, key=lambda k: k['area'], reverse=True) 
-
-def get_hz_per_x(fft, Fs):
+class Signal():
 
     """
-    Get number of Hertz per x coordinate.
+    Signal wrapper.
     """
 
-    return Fs / float(len(fft))
+    def __init__(self, signal, fs, bucket_size=200):
+        self.signal = signal
+        self.len = len(signal)
+        self.fs = fs
+        self.bucket_size = bucket_size
+        self.total_duration_sec = self.len / float(self.fs)
+        self.sec_per_x = self.total_duration_sec / float(self.len)
+        self.signal_x = [i * self.sec_per_x for i in xrange(self.len)]
 
-def get_formants(fft, Fs):
+
+    def get_signal_pos(self):
+
+        """
+        Get only positive values for signal.
+        """
+
+        return [self.signal[x] if self.signal[x] > 0 else 1 for x in xrange(0, self.len)]
+
+
+    def get_maxes(self):
+
+        """
+        Get max values.
+        """
+
+        signal_pos = self.get_signal_pos()
+        maxes = [int(max(signal_pos[i:i + self.bucket_size])) for i in xrange(0, len(signal_pos), self.bucket_size)]
+        maxes_x = [self.signal_x[i] for i in xrange(0, self.len, self.bucket_size)]
+
+        return maxes_x, maxes
+
+
+    def get_floor(self, maxes):
+        std = np.std(maxes)
+        floor = std * 0.25
+        return floor
+
+
+    def get_humps(self):
+
+        """
+        Get intensity humps.
+        """
+
+        maxes_x, maxes = self.get_maxes()
+        floor = self.get_floor(maxes)        
+
+        humps = []
+        hump = None
+
+        for i in range(0, len(maxes) - 1):
+            max_y1 = maxes[i]
+            max_y2 = maxes[i + 1]
+            start_hump = max_y1 <= floor and max_y2 > floor
+            end_hump = max_y1 > floor and max_y2 < floor
+            if start_hump:
+                hump = { 'start_index': i, 'start': i * self.bucket_size }
+            elif end_hump:
+                # Make sure we didn't start already in a hump.
+                if hump: 
+                    start_index = hump['start_index']
+                    hump['start_sec'] = maxes_x[start_index]
+                    hump['end'] = i * self.bucket_size
+                    hump['end_sec'] = maxes_x[i]
+                    hump_signal = maxes[start_index:i] 
+                    area = np.trapz(hump_signal)
+                    hump['area'] = area
+                    del hump['start_index']
+                    humps.append(hump)
+
+        return sorted(humps, key=lambda k: k['area'], reverse=True)
+
+
+    def get_vowel_range(self, start_index, end_index, num_segments, which_segment_to_use):
+
+        """
+        Get a list of vowel range (from start index to end index).
+        """
+
+        range_between_spikes = end_index - start_index
+        fraction_of_range = int(range_between_spikes / num_segments)
+        vowel_x1 = start_index + fraction_of_range * which_segment_to_use
+        vowel_x2 = vowel_x1 + fraction_of_range
+        return [vowel_x1, vowel_x2]
+
+
+    def get_main_vowel_range(self, main_hump):
+
+        """
+        Get vowel range for main hump.
+        """
+
+        return self.get_vowel_range(main_hump['start'], main_hump['end'], 5, 3)
+
+
+    def get_main_vowel_signal(self):
+
+        """
+        Get main vowel signal.
+        """
+
+        main_hump = self.get_humps()[0]
+        # Only use middle 1/3 of vowel.
+        vowel_range = self.get_main_vowel_range(main_hump)
+        vowel_signal = self.signal[vowel_range[0]:vowel_range[len(vowel_range) - 1]]
+        return vowel_signal
+
+
+    def get_hz_per_x(self, fft):
+
+        """
+        Get number of Hertz per x coordinate.
+        """
+
+        max_hz = self.fs / 2
+        return max_hz / float(len(fft))
+
+
+    def plot(self):
+
+        """
+        Show graphs.
+        """
+
+        # Plot maxes
+        plt.subplot(411)
+        maxes_x, maxes = self.get_maxes()
+        plt.plot(maxes_x, maxes)
+        floor = self.get_floor(maxes)
+        plt.plot([0, self.total_duration_sec], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
+
+        # Plot waveform
+        plt.subplot(412)
+        plt.plot(self.signal_x, self.signal)
+        max_val = max(self.signal)
+
+        # Plot main hump.
+        main_hump = self.get_humps()[0]
+        signal_main_hump_start = main_hump['start']
+        signal_main_hump_end = main_hump['end']
+        for index in [signal_main_hump_start, signal_main_hump_end]:
+            signal_x_val = self.signal_x[index]
+            plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
+
+        # Plot vowel range.
+        vowel_range = self.get_main_vowel_range(main_hump)
+        for index in vowel_range:
+            signal_x_val = self.signal_x[index]
+            plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
+
+        # Plot FFT
+        plt.subplot(413) 
+        fft = get_fft(self.get_main_vowel_signal())
+        hz_per_x = int(self.get_hz_per_x(fft))
+        fft_len = len(fft)
+        fft_x = [i * hz_per_x for i in xrange(fft_len)]
+        plt.plot(fft_x, fft)
+
+        # Plot spectrogram
+        plt.subplot(414)
+        spectrogram = plt.specgram(self.signal, Fs = self.fs, scale_by_freq=True, sides='default')
+
+        plt.show()
+
+
+def bark_diff(formants):
 
     """
-    Get F1 and F2 in signal.
+    Get Bark-converted values (Z) for vowel formants.
     """
 
-    hz_per_x = get_hz_per_x(fft, Fs)
-    peaks = get_peaks(fft)
+    return [26.81 / (1 + 1960 / float(f)) - 0.53 for f in formants]
 
-    print_debug('peaks')
-    print_debug(peaks)
-
-    sorted_peaks = sorted(peaks, key=lambda x: x[1], reverse=True)
-    print_debug('sorted peaks')
-    print_debug(sorted_peaks)
-
-    peak1 = sorted_peaks[0]
-    peak2 = sorted_peaks[1]
-
-    f1_index = peak1[0]
-    f2_index = peak2[0]
-    f1_value = peak1[1]
-    f2_value = peak2[1]
-
-    print_debug('index')
-    print_debug(f1_index)
-    print_debug(f2_index)
-
-    return [
-        {
-            'index': f1_index,
-            'value': f1_index * hz_per_x
-        },
-        {
-            'index': f2_index,
-            'value': f2_index * hz_per_x
-        }
-    ]
 
 def get_fft(signal):
 
@@ -144,160 +247,197 @@ def get_fft(signal):
     Get signal in terms of frequency (Hz).
     """
 
-    return 10 * np.log10(abs(np.fft.rfft(signal)))
+    return 20 * np.log10(abs(np.fft.rfft(signal)))
 
-def get_filtered_fft(fft, N, Fc, Fs):
 
-    """
-    Get low pass filtered signal.
-    """
-
-    h = firwin(numtaps=N, cutoff=Fc, nyq=Fs/2)
-    return lfilter(h, 1.0, fft)
-
-def get_moving_avg(interval, window_size):
-
-    window = np.ones(int(window_size))/float(window_size)
-    return np.convolve(interval, window, 'same')
-
-def get_vowel_rating(f1, f2, vowel_data):
+def get_formants(x, fs):
 
     """
-    Get 1-10 rating for vowel (10 = best, 1 = worst).
+    Estimate formants using LPC.
+
+    See:
+    http://www.mathworks.com/help/signal/ug/formant-estimation-with-lpc-coefficients.html
+    http://www.phon.ucl.ac.uk/courses/spsci/matlab/lect10.html
+
     """
 
-    #rate = lambda x: math.log(x) + 10
-    rate = lambda x: 10 * math.pow(x, 2)
-    percent_off = lambda target, actual: math.fabs(target / float(actual) - 1)
+    # Get Hamming window.
+    N = len(x)
+    w = np.hamming(N)
+
+    # Apply window.
+    x1 = x * w
+
+    # Apply pre-emphasis filter.
+    # x1 = lfilter([1.0], [1.0, -0.63], x1)
+
+    # Get LPC.
+    ncoeff = 2 + fs / 1000
+    A, e, k = lpc(x1, ncoeff)
+
+    # Get roots.
+    rts = np.roots(A)
+    rts = [r for r in rts if np.imag(r) > 0]
+
+    # Get angles.
+    angz = np.arctan2(np.imag(rts), np.real(rts))
+
+    # Get frequencies.
+    frqs = sorted(angz * (fs / (2 * math.pi)))
+
+    return frqs
+
+
+def get_dimensions(z_values):
+
+    """
+    Get front-back and height dimensions for Bark difference metric.
+    """
+
+    def front_back(z):
+        return z[2] - z[1]
+
+    def height(z):
+        return z[2] - z[0]
+
+    return front_back(z_values), height(z_values)
+
+
+def calc_percent_correct(actual, desired):
+
+    # Account for values that overshoot the desired value.
+    # eg) 750/740 -> 730/740
+    if actual > desired:
+        actual -= (actual - desired) * 2
+
+    return actual / desired
+
+
+def get_vowel_score(sample_z, model_z):
+
+    """
+    Return vowel score (0-100) as well as some feedback/tips on their pronunciation.
+    """
+
+    sample_front_back, sample_height = get_dimensions(sample_z)
+    model_front_back, model_height = get_dimensions(model_z)
+
+    print 'sample_z: %s' % sample_z
+    print 'model_z: %s' % model_z
+
+    print 'front-back = user: %f, model: %f' % (sample_front_back, model_front_back)
+    print 'height = user: %f, model: %f' % (sample_height, model_height)
+
+    # Calculate percent correct for front-back and height dimensions.
+    front_back_per = calc_percent_correct(sample_front_back, model_front_back)
+    height_per = calc_percent_correct(sample_height, model_height)
+
+    print "front_back_per: %f" % front_back_per
+    print "height_per: %f" % height_per
+
+    mean_per = np.mean([front_back_per, height_per])
+    total_score = int(mean_per * 100)
+
+    feedback = None
+
+    if mean_per < 0.5:
+        feedback = ("Hmmm... Something may have gone wrong. Please make sure "
+                    "you are recording the correct vowel and that there is not "
+                    "too much background noise during recording.")
+    else: 
+        if mean_per >= 0.9:
+            feedback = 'Excellent!'
+        else:
+            encouragement = 'Good try!'
+
+            if mean_per >= 0.8:
+                encouragement = 'Very nice!'
+            elif mean_per >= 0.75:
+                encouragement = 'Good!'
+
+            front_back_cue = 'forward' if sample_front_back > model_front_back else 'backward'
+            height_cue = 'closing' if sample_height > model_height else 'opening'
+        
+            feedback = ("%s To pronounce your vowel even better, try moving your tongue farther %s "
+                        "and %s your mouth more.") % (encouragement, front_back_cue, height_cue)
+
+    return total_score, feedback
+
+
+
+def get_rms_diff(a, b):
+
+    """
+    Measure the average difference of the curves.
+
+    See: http://programmers.stackexchange.com/questions/100303/correlation-between-two-curves
+    """
+
+    rmsdiff = 0
+    for (x, y) in zip(a, b):
+        rmsdiff += (x - y) ** 2  # NOTE: overflow danger if the vectors are long!
+    rmsdiff = math.sqrt(rmsdiff / min(len(a), len(b)))    
+    return rmsdiff
+
+
+def get_z_values(formants, model_formants):
+
+    """
+    Calculate z-values both assuming F0 was found and assuming it was missed. 
+    Compare them to the model and use whichever one is more similar to the model.
+    """
+
+    model_z = bark_diff(model_formants)
+
+    sample_z1 = bark_diff(formants[:3]) # Assumes F0 was missed.
+    sample_z2 = bark_diff(formants[1:4]) # Assumes F0 was found.
     
-    f1_percent_off, f2_percent_off = percent_off(vowel_data['f1'], f1), percent_off(vowel_data['f2'], f2) 
-    total_percent_off = f1_percent_off + f2_percent_off
-    print_debug('total percent off: %f' % total_percent_off)
+    rms_diff1 = get_rms_diff(sample_z1, model_z)
+    rms_diff2 = get_rms_diff(sample_z2, model_z)
 
-    rating = int(round(rate(1 - total_percent_off)))
-    return rating if rating > 0 else 1
+    print "rms_diff1: %f" % rms_diff1
+    print "rms_diff2: %f" % rms_diff2
 
-def rate_vowel(vowel, wav):
+    # Guess which of the two ranges of formants actually represents F1, F2, F3
+    # and use that. This is needed because F0 is often missed by the LPC analysis.
+    if rms_diff1 < rms_diff2:
+        return sample_z1, model_z
 
-    try:
-        vowel_data = load_vowel_data('formants.xml', vowel)
-        print_debug(vowel_data)
-    except KeyError as e:
-        print_debug('Vowel not recognized.')
-        raise SystemExit
+    return sample_z2, model_z
 
-    # Open WAV file
-    spf = wave.open(wav, 'r')
 
-    # Get WAV file data
-    sample_width = spf.getsampwidth() # 2 (bytes)
-    frame_rate = spf.getframerate() # 16000 f/s
-    
-    # Extract raw audio from WAV file
+def rate_vowel(file_path, sex, vowel):
+
+    if not sex in ['M', 'F']:
+        raise Exception('Sex must be M or F.')
+
+    if not vowel in FORMANTS:
+        raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
+
+    # Read signal from file.
+    spf = wave.open(file_path, 'r')
+    fs = spf.getframerate()
     signal = spf.readframes(-1)
-    signal = np.fromstring(signal, 'Int16')
-    Fs = spf.getframerate()
-
-    bucket_size = 200
-
-    # Get x-values for signal (in terms of seconds)
-    signal_len = len(signal)
-    total_duration_sec = signal_len / float(frame_rate)
-    sec_per_x = total_duration_sec / float(signal_len)
-    signal_x = [i * sec_per_x for i in xrange(signal_len)]
-
-    # Get only positive values
-    signal_pos = [signal[x] if signal[x] > 0 else 1 for x in xrange(0, len(signal))]
-
-    # Get maxes within buckets
-    maxes = [int(max(signal_pos[i:i+bucket_size])) for i in xrange(0, len(signal_pos), bucket_size)]
-    maxes_x = [signal_x[i] for i in xrange(0, signal_len, bucket_size)]
-
-    std = np.std(maxes)
-    mean = np.mean(maxes)
-    quarter_std = std * 0.25
-    print_debug('Std: %d' % std)
-    print_debug('Mean: %d' % mean)
-    print_debug('0.25 Std: %d' % quarter_std)
-
-    # Plot maxes
-    plt.subplot(511)
-    plt.plot(maxes_x, maxes)
-    floor = quarter_std
-    humps = get_humps(maxes_x, maxes, floor)
-    main_hump = humps[0]
-    main_vowel_start_sec = main_hump['start_sec']
-    main_vowel_end_sec = main_hump['end_sec'] 
-    duration = main_vowel_end_sec - main_vowel_start_sec
-    print_debug(main_vowel_start_sec)
-    print_debug(main_vowel_end_sec)
-    print_debug(duration)
-    plt.plot([0, total_duration_sec], [floor, floor], 'k-', lw=1, color='red', linestyle='solid')
-
-    # Get vowel range
-    signal_main_hump_start = main_hump['start']*bucket_size
-    signal_main_hump_end = main_hump['end']*bucket_size
-    vowel_range = get_vowel_range(signal_main_hump_start, signal_main_hump_end, 5, 3)
-
-    print_debug(vowel_range)
-
-    # Get vowel index
-    vowel_index = vowel_range[0] + ((vowel_range[1] - vowel_range[0]) / 2)
-
-    # Get spectral slice for vowel
-    vowel_signal = signal[vowel_range[0]:vowel_range[len(vowel_range)-1]]
-
-    fft = get_fft(vowel_signal)
-    #fft_filtered = get_moving_avg(fft, 10)
-    fft_filtered = get_filtered_fft(fft, 8, 40, Fs)
-
-    f1, f2 = get_formants(fft_filtered, Fs)
-
-    print_debug('f1: ')
-    print_debug(f1['value'])
-    print_debug('f2: ' )
-    print_debug(f2['value'])
-
-    rating = get_vowel_rating(f1['value'], f2['value'], vowel_data)
-    print_debug('rating: ')
-    print_debug('%s/10' % rating)
-
-    # Plot waveform
-    plt.subplot(512)
-    plt.plot(signal_x, signal)
-
-    max_val = max(signal)
-
-    # Plot main hump
-    for index in [signal_main_hump_start, signal_main_hump_end]:
-        signal_x_val = signal_x[index]
-        plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=1, color='green', linestyle='solid')
-
-    # Plot vowel range
-    for index in vowel_range:
-        signal_x_val = signal_x[index]
-        plt.plot([signal_x_val, signal_x_val], [max_val*-1, max_val], 'k-', lw=2, color='red', linestyle='dashed')
-
-    # Plot FFT
-    plt.subplot(513) 
-    hz_per_x = int(get_hz_per_x(fft, Fs))
-    fft_len = len(fft)
-    fft_x = [i * hz_per_x for i in xrange(fft_len)]
-    plt.plot(fft_x, fft)
-
-    # Plot filtered FFT
-    plt.subplot(514)
-    plt.plot(fft_x, fft_filtered)
-
-    # Plot formants
-    for formant in [f1, f2]:
-        plt.plot(formant['value'], fft[formant['index']], marker='o', color='r')
-
-    # Plot spectrogram
-    plt.subplot(515)
-    spectrogram = plt.specgram(signal, Fs = Fs, scale_by_freq=True, sides='default')
-
-    plt.show()
     spf.close()
 
-rate_vowel(sys.argv[1], sys.argv[2])
+    signal = np.fromstring(signal, 'Int16')
+    signal = Signal(signal, fs)
+    vowel_signal = signal.get_main_vowel_signal()    
+
+    formants = get_formants(vowel_signal, fs)[:4]
+    print 'formants: %s' % formants 
+
+    model_formants = FORMANTS[vowel][sex]
+    print 'model formants: %s' % model_formants
+
+    sample_z, model_z = get_z_values(formants, model_formants)
+
+    score = get_vowel_score(sample_z, model_z)
+
+    print score
+
+    # signal.plot()
+    
+
+rate_vowel(sys.argv[1], sys.argv[2], sys.argv[3])
+
