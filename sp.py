@@ -6,7 +6,6 @@ import wave
 import math
 from scipy import stats
 from scipy.signal import lfilter, hamming
-from scipy.stats import pearsonr
 from scikits.talkbox import lpc
 
 
@@ -322,18 +321,9 @@ def get_vowel_score(sample_z, model_z):
     sample_front_back, sample_height = get_dimensions(sample_z)
     model_front_back, model_height = get_dimensions(model_z)
 
-    print 'sample_z: %s' % sample_z
-    print 'model_z: %s' % model_z
-
-    print 'front-back = user: %f, model: %f' % (sample_front_back, model_front_back)
-    print 'height = user: %f, model: %f' % (sample_height, model_height)
-
     # Calculate percent correct for front-back and height dimensions.
     front_back_per = calc_percent_correct(sample_front_back, model_front_back)
     height_per = calc_percent_correct(sample_height, model_height)
-
-    print "front_back_per: %f" % front_back_per
-    print "height_per: %f" % height_per
 
     mean_per = np.mean([front_back_per, height_per])
     total_score = int(mean_per * 100)
@@ -395,9 +385,6 @@ def get_z_values(formants, model_formants):
     rms_diff1 = get_rms_diff(sample_z1, model_z)
     rms_diff2 = get_rms_diff(sample_z2, model_z)
 
-    print "rms_diff1: %f" % rms_diff1
-    print "rms_diff2: %f" % rms_diff2
-
     # Guess which of the two ranges of formants actually represents F1, F2, F3
     # and use that. This is needed because F0 is often missed by the LPC analysis.
     if rms_diff1 < rms_diff2:
@@ -415,6 +402,7 @@ def rate_vowel(file_path, sex, vowel):
         raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
 
     # Read signal from file.
+    # NB: Needs to be mono. Does not work correctly with stereo.
     spf = wave.open(file_path, 'r')
     fs = spf.getframerate()
     signal = spf.readframes(-1)
@@ -425,19 +413,15 @@ def rate_vowel(file_path, sex, vowel):
     vowel_signal = signal.get_main_vowel_signal()    
 
     formants = get_formants(vowel_signal, fs)[:4]
-    print 'formants: %s' % formants 
 
     model_formants = FORMANTS[vowel][sex]
-    print 'model formants: %s' % model_formants
 
     sample_z, model_z = get_z_values(formants, model_formants)
 
-    score = get_vowel_score(sample_z, model_z)
-
-    print score
+    return get_vowel_score(sample_z, model_z)
 
     # signal.plot()
     
 
-rate_vowel(sys.argv[1], sys.argv[2], sys.argv[3])
+# rate_vowel(sys.argv[1], sys.argv[2], sys.argv[3])
 
