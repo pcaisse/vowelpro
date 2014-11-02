@@ -2,67 +2,12 @@
 <html>
     <head>
         <title>Speech</title>
-        <script src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+        <script src="static/rate.js"></script>
     </head>
-    <script type="text/javascript">
-        // $(document).ready(function() {
-
-        //     $(':file').change(function(){
-        //         var file = this.files[0];
-        //         name = file.name;
-        //         size = file.size;
-        //         type = file.type;
-
-        //         if(file.name.length < 1) {
-        //         }
-        //         else if(file.size > 1000000) {
-        //             alert("File is too big");
-        //         }
-        //         else if(file.type !== 'audio/wav' ) {
-        //             alert("Must be WAV file");
-        //         }
-        //         else { 
-        //             $(':submit').click(function(){
-        //                 var formData = new FormData(document.getElementById('form'));
-        //                 console.log(formData);
-        //                 // formData.append('word')
-        //                 $.ajax({
-        //                     url: '/rate',  //server script to process data
-        //                     type: 'POST',
-        //                     xhr: function() {  // custom xhr
-        //                         myXhr = $.ajaxSettings.xhr();
-        //                         if(myXhr.upload){ // if upload property exists
-        //                             myXhr.upload.addEventListener('progress', progressHandlingFunction, false); // progressbar
-        //                         }
-        //                         return myXhr;
-        //                     },
-        //                     //Ajax events
-        //                     success: completeHandler = function(data) {
-        //                         alert(data);
-        //                     },
-        //                     error: errorHandler = function(error) {
-        //                         alert("Error!", error);
-        //                     },
-        //                     // Form data
-        //                     data: formData,
-        //                     enctype: 'multipart/form-data',
-        //                     //Options to tell JQuery not to process data or worry about content-type
-        //                     cache: false,
-        //                     contentType: false,
-        //                     processData: false
-        //                 }, 'json');
-        //                 return false;
-        //             });
-        //         }
-        //     });
-
-        // });
-     </script>
     <body>
         Upload file:
-        <form method="post" id="form" action="/rate" enctype="multipart/form-data"> 
-            <input type="file" name="file" id="file">
-            <input type="submit" value="Submit">
-        </form>
+        <input type="file" name="file" id="file">
+        <input type="submit" value="Submit">
     </body>
 </html>

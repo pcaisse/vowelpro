@@ -11,7 +11,6 @@ class SpeechWebService(object):
 	exposed = True
 
 	def POST(self, file):
-	# def POST(self, length=8):
 	    score, feedback = sp.rate_vowel(file.file, 'M', 'ae')
 	    return str(score)
 
@@ -28,7 +27,7 @@ if __name__ == '__main__':
         },
         '/static': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': './public'
+            'tools.staticdir.dir': 'static'
         }
     }
 	webapp = Speech()
