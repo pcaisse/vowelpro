@@ -6,13 +6,15 @@ $(document).ready(function() {
     
     speechRec.init(
         function success() {
-            $(recordBtn).click(function() {
+            var $recordBtn = $(recordBtn);
+            $recordBtn.click(function() {
                 if (speechRec.isRecording()) {
-                    $(this).prop('disabled', true);
+                    $recordBtn.prop('disabled', true);
                     speechRec.stop(function(blob) {
                         rateVowel(blob, function(score) {
                             $(scoreElem).html(score);
-                            $(this).prop('disabled', false);
+                            $recordBtn.prop('disabled', false);
+                            //speechRec.download(blob); 
                         }, function(error) {
                             console.log(error);
                         });

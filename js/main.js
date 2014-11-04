@@ -1,6 +1,6 @@
 var SpeechRec = (function(window) {
 
-    var audioRecorder;
+    var audioRecorder, audioContext;
     var recording = false;
 
     /**
@@ -10,10 +10,27 @@ var SpeechRec = (function(window) {
         audioRecorder && audioRecorder.exportWAV(callback);
     }
 
+    function convertToMono(input) {
+        if (!audioContext) {
+            return input;
+        }
+        var splitter = audioContext.createChannelSplitter(2);
+        var merger = audioContext.createChannelMerger(2);
+
+        input.connect( splitter );
+        splitter.connect( merger, 0, 0 );
+        splitter.connect( merger, 0, 1 );
+        return merger;
+    }
+
     return function() {
 
         this.isRecording = function() {
             return recording;
+        }
+
+        this.download = function(blob) {
+            Recorder.forceDownload(blob, "myRecording.wav" );
         }
 
         /**
@@ -56,10 +73,13 @@ var SpeechRec = (function(window) {
                     }, 
                     function(stream) {
                         var AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.oAudioContext || window.msAudioContext;
-                        var audioContext = new AudioContext();
+                        audioContext = new AudioContext();
                         var input = audioContext.createMediaStreamSource(stream);
-                        input.connect(audioContext.destination);
-                        audioRecorder = new Recorder(input, {'workerPath': 'js/recorder/recorderWorker.js'});
+                        input = convertToMono(input);
+                        audioRecorder = new Recorder(input, {
+                            'workerPath': 'js/recorder/recorderWorker.js',
+                            'mono': true
+                        });
                         successCallback();
                     }, 
                     failureCallback);

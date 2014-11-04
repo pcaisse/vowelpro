@@ -5,6 +5,7 @@
   var Recorder = function(source, cfg){
     var config = cfg || {};
     var bufferLen = config.bufferLen || 4096;
+    var mono = config.mono; 
     this.context = source.context;
     this.node = (this.context.createScriptProcessor ||
                  this.context.createJavaScriptNode).call(this.context,
@@ -13,7 +14,8 @@
     worker.postMessage({
       command: 'init',
       config: {
-        sampleRate: this.context.sampleRate
+        sampleRate: this.context.sampleRate,
+        mono: mono
       }
     });
     var recording = false,
@@ -21,12 +23,15 @@
 
     this.node.onaudioprocess = function(e){
       if (!recording) return;
+
+      var buffer = [e.inputBuffer.getChannelData(0)];
+      if (!mono) {
+        buffer.push(e.inputBuffer.getChannelData(1));
+      }
+
       worker.postMessage({
         command: 'record',
-        buffer: [
-          e.inputBuffer.getChannelData(0),
-          e.inputBuffer.getChannelData(1)
-        ]
+        buffer: buffer
       });
     }
 
