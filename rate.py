@@ -10,8 +10,8 @@ class Speech(object):
 class SpeechWebService(object):
 	exposed = True
 
-	def POST(self, file):
-	    score, feedback = sp.rate_vowel(file.file, 'M', 'ae')
+	def POST(self, file, sex, vowel):
+	    score, feedback = sp.rate_vowel(file.file, sex, vowel)
 	    return str(score)
 
 if __name__ == '__main__':

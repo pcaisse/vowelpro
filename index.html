@@ -4,12 +4,20 @@
         <title>Speech</title>
         <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
         <script src="js/recorder/recorder.js"></script>
+        <script src="js/speechRec.js"></script>
+        <script src="js/word.js"></script>
         <script src="js/main.js"></script>
-        <script src="js/rate.js"></script>
     </head>
     <body>
-        <p>bat</p>
+        <label>Sex: 
+            <select id="sex">
+                <option>M</option>
+                <option>F</option>
+            </select>
+        </label>
+        <h1 id="word"></h1>
         <button id="record">Record</button>
+        <button id="new-word">New Word</button>
         <p id="score"></p>
     </body>
 </html>

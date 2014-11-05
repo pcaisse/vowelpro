@@ -1,93 +1,74 @@
-var SpeechRec = (function(window) {
+$(document).ready(function() {
 
-    var audioRecorder, audioContext;
-    var recording = false;
+    "use strict";
+    
+    Word.new();
+    
+    var recordBtn = document.getElementById('record');
+    var scoreElem = document.getElementById('score');
+    var wordElem = document.getElementById('word');
+    var sexElem = document.getElementById('sex');
+    var newWordElem = document.getElementById('new-word');
 
-    /**
-     * Get WAV file.
-     */
-    function getWav(callback) {
-        audioRecorder && audioRecorder.exportWAV(callback);
-    }
-
-    function convertToMono(input) {
-        if (!audioContext) {
-            return input;
-        }
-        var splitter = audioContext.createChannelSplitter(2);
-        var merger = audioContext.createChannelMerger(2);
-
-        input.connect( splitter );
-        splitter.connect( merger, 0, 0 );
-        splitter.connect( merger, 0, 1 );
-        return merger;
-    }
-
-    return function() {
-
-        this.isRecording = function() {
-            return recording;
-        }
-
-        this.download = function(blob) {
-            Recorder.forceDownload(blob, "myRecording.wav" );
-        }
-
-        /**
-         * Start recording.
-         */
-        this.start = function() {
-            if (!audioRecorder) return;
-            audioRecorder.clear();
-            audioRecorder.record();
-            recording = true;
-        }
-
-        /**
-         * Stop recording.
-         */
-        this.stop = function(callback) {
-            audioRecorder && audioRecorder.stop();
-            recording = false;
-            getWav(callback);
-        }
-
-        /**
-         * Attempt to access user's microphone to record audio. 
-         */
-        this.init = function(successCallback, failureCallback, browserNotSupportedCallback) {
-
-            navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || window.oGetUserMedia || navigator.msGetUserMedia;
-            if (navigator.getUserMedia) {
-                navigator.getUserMedia(
-                    {
-                        "audio": {
-                            "mandatory": {
-                                "googEchoCancellation": "false",
-                                "googAutoGainControl": "false",
-                                "googNoiseSuppression": "false",
-                                "googHighpassFilter": "false"
-                            },
-                            "optional": []
-                        }
-                    }, 
-                    function(stream) {
-                        var AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext || window.oAudioContext || window.msAudioContext;
-                        audioContext = new AudioContext();
-                        var input = audioContext.createMediaStreamSource(stream);
-                        input = convertToMono(input);
-                        audioRecorder = new Recorder(input, {
-                            'workerPath': 'js/recorder/recorderWorker.js',
-                            'mono': true
+    showWord();
+    
+    SpeechRec.init(
+        function success() {
+            var $recordBtn = $(recordBtn);
+            $recordBtn.click(function() {
+                if (SpeechRec.isRecording()) {
+                    $recordBtn.prop('disabled', true);
+                    SpeechRec.stop(function(blob) {
+                        var sex = sexElem[sexElem.selectedIndex].value;
+                        var vowel = Word.getVowel();
+                        rateVowel(blob, sex, vowel, function(score) {
+                            $(scoreElem).html(score);
+                            $recordBtn.prop('disabled', false);
+                            $(recordBtn).html('Record');
+                            //SpeechRec.download(blob); 
+                        }, function(error) {
+                            console.log(error);
                         });
-                        successCallback();
-                    }, 
-                    failureCallback);
-            } else {
-                // Browser not supported.
-                browserNotSupportedCallback();
-            }
+                    });
+                } else {
+                    SpeechRec.start();
+                    $(scoreElem).html('');
+                    $(recordBtn).html('Stop')
+                }
+            });
+            $(newWordElem).click(function() {
+                Word.new();
+                showWord();
+            });
+        },
+        function failure() {
+            alert('Error initializing audio recording');
+        },
+        function browserNotSupported() {
+            alert('Your broswer is not supported');
         }
-    }
+    );
 
-})(window);
+    function showWord() {
+        wordElem.innerHTML = Word.getWord();
+    }
+    
+    function rateVowel(blob, sex, vowel, success, failure) {
+        var formData = new FormData();
+        formData.append('file', blob);
+        formData.append('sex', sex);
+        formData.append('vowel', vowel);
+        $.ajax({
+            url: '/rate',
+            type: 'POST',
+            success: success,
+            error: failure,
+            data: formData,
+            enctype: 'multipart/form-data',
+            cache: false,
+            contentType: false,
+            processData: false
+        });
+    }         
+
+});
