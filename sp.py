@@ -167,7 +167,10 @@ class Signal():
         Get main vowel signal.
         """
 
-        main_hump = self.get_humps()[0]
+        humps = self.get_humps()
+        if len(humps) == 0:
+            raise Exception("No main vowel signal detected.")
+        main_hump = humps[0]
         # Only use middle 1/3 of vowel.
         vowel_range = self.get_main_vowel_range(main_hump)
         vowel_signal = self.signal[vowel_range[0]:vowel_range[len(vowel_range) - 1]]
@@ -401,14 +404,24 @@ def rate_vowel(file_path, sex, vowel):
     if not vowel in FORMANTS:
         raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
 
+    signal = None
+    fs = 0
+
     # Read signal from file.
     # NB: Needs to be mono. Does not work correctly with stereo.
-    spf = wave.open(file_path, 'r')
-    fs = spf.getframerate()
-    signal = spf.readframes(-1)
-    spf.close()
+    try:
+        spf = wave.open(file_path, 'r')
+        fs = spf.getframerate()
+        signal = spf.readframes(-1)
+        spf.close()
+    except Exception as e:
+        raise Exception('Error reading signal from file: %s' % e)
 
-    signal = np.fromstring(signal, 'Int16')
+    try:
+        signal = np.fromstring(signal, 'Int16')
+    except ValueError as ve:
+        raise Exception('Error converting signal to array: %s' % ve)
+
     signal = Signal(signal, fs)
     vowel_signal = signal.get_main_vowel_signal()    
 

@@ -9,6 +9,7 @@ $(document).ready(function() {
     var wordElem = document.getElementById('word');
     var sexElem = document.getElementById('sex');
     var newWordElem = document.getElementById('new-word');
+    var errorElem = document.getElementById('error');
 
     showWord();
     
@@ -21,8 +22,12 @@ $(document).ready(function() {
                     SpeechRec.stop(function(blob) {
                         var sex = sexElem[sexElem.selectedIndex].value;
                         var vowel = Word.getVowel();
-                        rateVowel(blob, sex, vowel, function(score) {
-                            $(scoreElem).html(score);
+                        rateVowel(blob, sex, vowel, function(data) {
+                            if (data.error) {
+                                $(errorElem).html(data.error);
+                            } else {
+                                $(scoreElem).html(data.score);
+                            }
                             $recordBtn.prop('disabled', false);
                             $(recordBtn).html('Record');
                             //SpeechRec.download(blob); 
