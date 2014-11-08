@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var recordBtn = document.getElementById('record');
     var scoreElem = document.getElementById('score');
     var wordElem = document.getElementById('word');
-    var sexElem = document.getElementById('sex');
     var newWordElem = document.getElementById('new-word');
     var errorElem = document.getElementById('error');
 
@@ -19,9 +18,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (SpeechRec.isRecording()) {
                     recordBtn.disabled = true;
                     SpeechRec.stop(function(blob) {
-                        var sex = sexElem[sexElem.selectedIndex].value;
                         var vowel = Word.getVowel();
-                        rateVowel(blob, sex, vowel, function(xhrEvent) {
+                        rateVowel(blob, vowel, function(xhrEvent) {
                             var response = xhrEvent && xhrEvent.target && 
                                     xhrEvent.target.response && JSON.parse(xhrEvent.target.response);
                             if (response.error) {
@@ -59,10 +57,9 @@ document.addEventListener('DOMContentLoaded', function() {
         wordElem.innerHTML = Word.getWord();
     }
     
-    function rateVowel(blob, sex, vowel, success, failure) {
+    function rateVowel(blob, vowel, success, failure) {
         var formData = new FormData();
         formData.append('file', blob);
-        formData.append('sex', sex);
         formData.append('vowel', vowel);
 
         var xhr = new XMLHttpRequest();

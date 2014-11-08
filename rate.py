@@ -12,9 +12,9 @@ class Speech(object):
 class SpeechWebService(object):
     exposed = True
 
-    def POST(self, file, sex, vowel):
+    def POST(self, file, vowel):
         try:
-            score, feedback = sp.rate_vowel(file.file, sex, vowel)
+            score, feedback = sp.rate_vowel(file.file, vowel)
             return json.dumps({
                 'score': str(score),
                 'feedback': feedback 

@@ -13,50 +13,18 @@ FORMANTS = {
     # See: Dialect variation and formant frequency: The American English vowels revisited
     #      Robert Hagiwara
     # http://www.docin.com/p-101062744.html
-    'i': {
-        'M': [291, 2338, 2920],
-        'F': [362, 2897, 3495]
-    },      
-    'I': {
-        'M': [418, 1807, 2589],
-        'F': [467, 2400, 3187]
-    },     
-    'e': {
-        'M': [403, 2059, 2690],
-        'F': [440, 2655, 3252]
-    },     
-    'E': {
-        'M': [529, 1670, 2528],
-        'F': [808, 2163, 3065]
-    },     
-    'ae': {
-        'M': [685, 1601, 2524],
-        'F': [1017, 1810, 2826]
-    },
-    'u': {
-        'M': [323, 1417, 2399],
-        'F': [395, 1700, 2866]
-    },     
-    'U': {
-        'M': [441, 1366, 2446],
-        'F': [486, 1665, 2926]
-    },     
-    'o': {
-        'M': [437, 1188, 2430],
-        'F': [516, 1391, 2904]
-    },     
-    'a': {
-        'M': [710, 1221, 2405],
-        'F': [997, 1390, 2743]
-    },     
-    '^': {
-        'M': [574, 1415, 2496],
-        'F': [847, 1753, 2989]
-    },     
-    'r': {
-        'M': [429, 1362, 1679],
-        'F': [477, 1558, 1995]
-    },     
+    # NB: Only the data for male informants is used. Normalization seems to entirely account for phisiological differences.
+    'i': [291, 2338, 2920],      
+    'I': [418, 1807, 2589],     
+    'e': [403, 2059, 2690],     
+    'E': [529, 1670, 2528],     
+    'ae': [685, 1601, 2524],
+    'u': [323, 1417, 2399],     
+    'U': [441, 1366, 2446],     
+    'o': [437, 1188, 2430],     
+    'a': [710, 1221, 2405],     
+    '^': [574, 1415, 2496],     
+    'r': [429, 1362, 1679]     
 }
 
 
@@ -396,10 +364,7 @@ def get_z_values(formants, model_formants):
     return sample_z2, model_z
 
 
-def rate_vowel(file_path, sex, vowel):
-
-    if not sex in ['M', 'F']:
-        raise Exception('Sex must be M or F.')
+def rate_vowel(file_path, vowel):
 
     if not vowel in FORMANTS:
         raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
@@ -427,7 +392,7 @@ def rate_vowel(file_path, sex, vowel):
 
     formants = get_formants(vowel_signal, fs)[:4]
 
-    model_formants = FORMANTS[vowel][sex]
+    model_formants = FORMANTS[vowel]
 
     sample_z, model_z = get_z_values(formants, model_formants)
 
