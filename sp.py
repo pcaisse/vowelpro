@@ -299,30 +299,9 @@ def get_vowel_score(sample_z, model_z):
     mean_per = np.mean([front_back_per, height_per])
     total_score = int(mean_per * 100)
 
-    feedback = None
-
-    if mean_per < 0.5:
-        feedback = ("Hmmm... Something may have gone wrong. Please make sure "
-                    "you are recording the correct vowel and that there is not "
-                    "too much background noise during recording.")
-    else: 
-        if mean_per >= 0.9:
-            feedback = 'Excellent!'
-        else:
-            encouragement = 'Good try!'
-
-            if mean_per >= 0.8:
-                encouragement = 'Very nice!'
-            elif mean_per >= 0.75:
-                encouragement = 'Good!'
-
-            front_back_cue = 'forward' if sample_front_back > model_front_back else 'backward'
-            height_cue = 'closing' if sample_height > model_height else 'opening'
-        
-            feedback = ("%s To pronounce your vowel even better, try moving your tongue farther %s "
-                        "and %s your mouth more.") % (encouragement, front_back_cue, height_cue)
-
-    return total_score, feedback
+    return {
+        'score': total_score
+    }
 
 
 

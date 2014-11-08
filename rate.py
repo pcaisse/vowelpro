@@ -14,11 +14,7 @@ class SpeechWebService(object):
 
     def POST(self, file, vowel):
         try:
-            score, feedback = sp.rate_vowel(file.file, vowel)
-            return json.dumps({
-                'score': str(score),
-                'feedback': feedback 
-            })
+            return json.dumps(sp.rate_vowel(file.file, vowel))
         except Exception as e:
             print traceback.format_exc()
             return json.dumps({

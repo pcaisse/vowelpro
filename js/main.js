@@ -4,9 +4,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     Word.new();
     
-    var recordBtn = document.getElementById('record');
+    var recordElem = document.getElementById('record');
     var scoreElem = document.getElementById('score');
+    var msgElem = document.getElementById('msg');
     var wordElem = document.getElementById('word');
+    var ipaElem = document.getElementById('ipa');
     var newWordElem = document.getElementById('new-word');
     var errorElem = document.getElementById('error');
 
@@ -14,21 +16,37 @@ document.addEventListener('DOMContentLoaded', function() {
     
     SpeechRec.init(
         function success() {
-            recordBtn.addEventListener('click', function() {
+            recordElem.addEventListener('click', function() {
                 if (SpeechRec.isRecording()) {
-                    recordBtn.disabled = true;
+                    recordElem.disabled = true;
                     SpeechRec.stop(function(blob) {
                         var vowel = Word.getVowel();
                         rateVowel(blob, vowel, function(xhrEvent) {
                             var response = xhrEvent && xhrEvent.target && 
                                     xhrEvent.target.response && JSON.parse(xhrEvent.target.response);
+                            if (!response) {
+                                errorElem.innerHTML = 'Error retrieving response from server.';
+                                return;
+                            }
                             if (response.error) {
                                 errorElem.innerHTML = response.error;
                             } else {
-                                scoreElem.innerHTML = response.score;
+                                var score = response.score;
+                                var msg;
+                                if (score >= 90) {
+                                    msg = 'Excellent!';
+                                } else if (score >= 80) {
+                                    msg = 'Very nice!';
+                                } else if (score >= 0.75) {
+                                    msg = 'Good!';
+                                } else {
+                                    msg = 'Good try!';
+                                }
+                                scoreElem.innerHTML = score;
+                                msgElem.innerHTML = msg;
                             }
-                            recordBtn.disabled = false;
-                            recordBtn.innerHTML = 'Record';
+                            recordElem.disabled = false;
+                            recordElem.innerHTML = 'Record';
                             //SpeechRec.download(blob); 
                         }, function(error) {
                             console.log(error);
@@ -36,8 +54,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 } else {
                     SpeechRec.start();
-                    scoreElem.innerHTML = '';
-                    recordBtn.innerHTML = 'Stop';
+                    var elems = [scoreElem, msgElem];
+                    elems.forEach(function(elem) {
+                        elem.innerHTML = '';
+                    });
+                    recordElem.innerHTML = 'Stop';
                 }
             });
             newWordElem.addEventListener('click', function() {
@@ -55,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showWord() {
         wordElem.innerHTML = Word.getWord();
+        ipaElem.innerHTML =  '/' + Word.getVowelIpa() + '/';
     }
     
     function rateVowel(blob, vowel, success, failure) {
