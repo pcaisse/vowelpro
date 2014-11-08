@@ -3,6 +3,26 @@
 }
 
 #ipa {
+	font-family: "Times New Roman";
 	padding-left: 10px;
 	color: #CCC;
+}
+
+#container {
+	position: absolute;
+	min-height: 200px;
+	width: 70%;
+	left: 15%;
+	border: 2px solid #CCC;
+	padding: 10px;
+	text-align: center;
+	border-radius: 10px;
+}
+
+body {
+	font: 14px Arial;
+}
+
+#feedback {
+	margin-top: 25px;
 }
