@@ -2,7 +2,6 @@
 <html>
     <head>
         <title>Speech</title>
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
         <script src="js/recorder/recorder.js"></script>
         <script src="js/speechRec.js"></script>
         <script src="js/word.js"></script>
@@ -10,16 +9,18 @@
         <link rel="stylesheet" type="text/css" href="css/main.css">
     </head>
     <body>
-        <label>Sex: 
-            <select id="sex">
-                <option>M</option>
-                <option>F</option>
-            </select>
-        </label>
-        <h1 id="word"></h1>
-        <button id="record">Record</button>
-        <button id="new-word">New Word</button>
-        <p id="score"></p>
-        <p id="error"></p>
+        <div id="container">
+            <label>Sex: 
+                <select id="sex">
+                    <option>M</option>
+                    <option>F</option>
+                </select>
+            </label>
+            <h1 id="word"></h1>
+            <button id="record">Record</button>
+            <button id="new-word">New Word</button>
+            <p id="score"></p>
+            <p id="error"></p>
+        </div>
     </body>
 </html>

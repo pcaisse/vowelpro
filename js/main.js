@@ -1,4 +1,4 @@
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
 
     "use strict";
     
@@ -15,21 +15,22 @@ $(document).ready(function() {
     
     SpeechRec.init(
         function success() {
-            var $recordBtn = $(recordBtn);
-            $recordBtn.click(function() {
+            recordBtn.addEventListener('click', function() {
                 if (SpeechRec.isRecording()) {
-                    $recordBtn.prop('disabled', true);
+                    recordBtn.disabled = true;
                     SpeechRec.stop(function(blob) {
                         var sex = sexElem[sexElem.selectedIndex].value;
                         var vowel = Word.getVowel();
-                        rateVowel(blob, sex, vowel, function(data) {
-                            if (data.error) {
-                                $(errorElem).html(data.error);
+                        rateVowel(blob, sex, vowel, function(xhrEvent) {
+                            var response = xhrEvent && xhrEvent.target && 
+                                    xhrEvent.target.response && JSON.parse(xhrEvent.target.response);
+                            if (response.error) {
+                                errorElem.innerHTML = response.error;
                             } else {
-                                $(scoreElem).html(data.score);
+                                scoreElem.innerHTML = response.score;
                             }
-                            $recordBtn.prop('disabled', false);
-                            $(recordBtn).html('Record');
+                            recordBtn.disabled = false;
+                            recordBtn.innerHTML = 'Record';
                             //SpeechRec.download(blob); 
                         }, function(error) {
                             console.log(error);
@@ -37,20 +38,20 @@ $(document).ready(function() {
                     });
                 } else {
                     SpeechRec.start();
-                    $(scoreElem).html('');
-                    $(recordBtn).html('Stop')
+                    scoreElem.innerHTML = '';
+                    recordBtn.innerHTML = 'Stop';
                 }
             });
-            $(newWordElem).click(function() {
+            newWordElem.addEventListener('click', function() {
                 Word.new();
                 showWord();
             });
         },
         function failure() {
-            alert('Error initializing audio recording');
+            errorElem.innerHTML = 'Error initializing audio recording.';
         },
         function browserNotSupported() {
-            alert('Your broswer is not supported');
+            errorElem.innerHTML = 'Your broswer is not supported.';
         }
     );
 
@@ -63,17 +64,12 @@ $(document).ready(function() {
         formData.append('file', blob);
         formData.append('sex', sex);
         formData.append('vowel', vowel);
-        $.ajax({
-            url: '/rate',
-            type: 'POST',
-            success: success,
-            error: failure,
-            data: formData,
-            enctype: 'multipart/form-data',
-            cache: false,
-            contentType: false,
-            processData: false
-        });
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/rate', true);
+        xhr.addEventListener('load', success);
+        xhr.addEventListener('error', failure);
+        xhr.send(formData);
     }         
 
 });
