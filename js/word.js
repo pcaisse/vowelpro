@@ -4,23 +4,27 @@ var Word = (function(window) {
 
     var WORDS = [
         ['i', 'i', 'beat', 'peak', 'beak'],      
-        ['I', '026A', 'bit', 'tick', 'hid'],     
-        ['e', 'e', 'bait', 'take', 'hate'],     
-        ['E', '025B', 'bet', 'tech', 'head'],     
-        ['ae', '00E6', 'bat', 'tack', 'had'],
-        ['u', 'u', 'boot', 'duke', 'hoot'],     
-        ['U', '028A', 'put', 'took', 'hood'],     
+        ['I', '026A', 'bit', 'tick', 'kid'],     
+        ['e', 'e', 'bait', 'take', 'cake'],     
+        ['E', '025B', 'bet', 'peck', 'pet'],     
+        ['ae', '00E6', 'bat', 'tack', 'pad'],
+        ['u', 'u', 'boot', 'dupe', 'toot'],     
+        ['U', '028A', 'put', 'took', 'could'],     
         ['o', 'o', 'boat', 'toad', 'goat'],     
         ['a', '0254', 'bought', 'talk', 'caught'],     
         ['^', '028C', 'but', 'tuck', 'cup'],     
-        ['r', '025D', 'dirt', 'curb', 'heard']    
+        ['r', '025D', 'dirt', 'curb', 'bird']    
     ];
     var vowelIndex, wordIndex;
 
     return {
 
         new: function() {
-            vowelIndex = Math.floor(WORDS.length * Math.random());
+            var newIndex; 
+            while (!newIndex || newIndex === vowelIndex) {
+                newIndex = Math.floor(WORDS.length * Math.random());
+            }
+            vowelIndex = newIndex;
             var vowelData = WORDS[vowelIndex];
             var vowel = vowelData[0];
             wordIndex = Math.floor((vowelData.length - 2) * Math.random()) + 2;

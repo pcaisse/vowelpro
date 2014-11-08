@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     msg = 'Excellent!';
                                 } else if (score >= 80) {
                                     msg = 'Very nice!';
-                                } else if (score >= 0.75) {
+                                } else if (score >= 75) {
                                     msg = 'Good!';
                                 } else {
                                     msg = 'Good try!';
@@ -54,10 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 } else {
                     SpeechRec.start();
-                    var elems = [scoreElem, msgElem];
-                    elems.forEach(function(elem) {
-                        elem.innerHTML = '';
-                    });
+                    clearElems();
                     recordElem.innerHTML = 'Stop';
                 }
             });
@@ -74,9 +71,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     );
 
+    function clearElems() {
+        var elems = [scoreElem, msgElem, errorElem];
+        elems.forEach(function(elem) {
+            elem.innerHTML = '';
+        });
+    }
+
     function showWord() {
         wordElem.innerHTML = Word.getWord();
         ipaElem.innerHTML =  '/' + Word.getVowelIpa() + '/';
+        clearElems();
     }
     
     function rateVowel(blob, vowel, success, failure) {

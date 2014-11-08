@@ -9,6 +9,10 @@ from scipy.signal import lfilter, hamming
 from scikits.talkbox import lpc
 
 
+# NB: In General American, these vowels are realized as falling diphtongs.
+DIPHTHONGS = ['e', 'o']
+
+
 FORMANTS = {
     # See: Dialect variation and formant frequency: The American English vowels revisited
     #      Robert Hagiwara
@@ -34,7 +38,7 @@ class Signal():
     Signal wrapper.
     """
 
-    def __init__(self, signal, fs, bucket_size=200):
+    def __init__(self, signal, fs, bucket_size=200, vowel_slices=5, vowel_slice_index=3):
         self.signal = signal
         self.len = len(signal)
         self.fs = fs
@@ -42,6 +46,8 @@ class Signal():
         self.total_duration_sec = self.len / float(self.fs)
         self.sec_per_x = self.total_duration_sec / float(self.len)
         self.signal_x = [i * self.sec_per_x for i in xrange(self.len)]
+        self.vowel_slices = vowel_slices
+        self.vowel_slice_index = vowel_slice_index
 
 
     def get_signal_pos(self):
@@ -126,7 +132,7 @@ class Signal():
         Get vowel range for main hump.
         """
 
-        return self.get_vowel_range(main_hump['start'], main_hump['end'], 5, 3)
+        return self.get_vowel_range(main_hump['start'], main_hump['end'], self.vowel_slices, self.vowel_slice_index)
 
 
     def get_main_vowel_signal(self):
@@ -300,7 +306,11 @@ def get_vowel_score(sample_z, model_z):
     total_score = int(mean_per * 100)
 
     return {
-        'score': total_score
+        'score': total_score,
+        'sample_front_back': sample_front_back,
+        'model_front_back': model_front_back,
+        'sample_height': sample_height,
+        'model_front_back': model_front_back
     }
 
 
@@ -366,7 +376,7 @@ def rate_vowel(file_path, vowel):
     except ValueError as ve:
         raise Exception('Error converting signal to array: %s' % ve)
 
-    signal = Signal(signal, fs)
+    signal = Signal(signal, fs) if not vowel in DIPHTHONGS else Signal(signal, fs, vowel_slice_index=1, vowel_slices=7)
     vowel_signal = signal.get_main_vowel_signal()    
 
     formants = get_formants(vowel_signal, fs)[:4]
@@ -374,11 +384,12 @@ def rate_vowel(file_path, vowel):
     model_formants = FORMANTS[vowel]
 
     sample_z, model_z = get_z_values(formants, model_formants)
+    
+    # signal.plot()
 
     return get_vowel_score(sample_z, model_z)
 
-    # signal.plot()
     
-
-# rate_vowel(sys.argv[1], sys.argv[2], sys.argv[3])
+if __name__ == '__main__':
+    rate_vowel(sys.argv[1], sys.argv[2])
 
