@@ -9,9 +9,9 @@
 }
 
 #container {
-	position: absolute;
-	height: 320px;
-	width: 70%;
+	margin: 0 auto;
+	width: 75%;
+	max-width: 600px;
 	left: 15%;
 	border: 2px solid #CCC;
 	padding: 10px;
@@ -31,8 +31,15 @@ button {
 	margin-top: 25px;
 }
 
-#content {
+main {
 	margin-top: 40px;
+}
+
+footer {
+	margin-top: 50px;
+	width: 100%;
+	text-align: center;
+	padding-bottom: 10px;
 }
 
 .hidden {
