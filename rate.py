@@ -39,6 +39,10 @@ if __name__ == '__main__':
         '/css': {
             'tools.staticdir.on': True,
             'tools.staticdir.dir': 'css'
+        },
+        '/fonts': {
+            'tools.staticdir.on': True,
+            'tools.staticdir.dir': 'fonts'
         }
     }
     webapp = Speech()

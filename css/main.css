@@ -10,7 +10,7 @@
 
 #container {
 	position: absolute;
-	min-height: 200px;
+	height: 320px;
 	width: 70%;
 	left: 15%;
 	border: 2px solid #CCC;
@@ -20,9 +20,21 @@
 }
 
 body {
-	font: 14px Arial;
+	font-family: Arial;
+}
+
+button {
+	font-size: 100%;
 }
 
 #feedback {
 	margin-top: 25px;
+}
+
+#content {
+	margin-top: 40px;
+}
+
+.hidden {
+	display: none !important;
 }

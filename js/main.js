@@ -5,12 +5,15 @@ document.addEventListener('DOMContentLoaded', function() {
     Word.new();
     
     var recordElem = document.getElementById('record');
+    var recordTextElem = document.getElementById('record-text');
+    var recordImgElem = document.getElementById('record-img');
     var scoreElem = document.getElementById('score');
     var msgElem = document.getElementById('msg');
     var wordElem = document.getElementById('word');
     var ipaElem = document.getElementById('ipa');
     var newWordElem = document.getElementById('new-word');
     var errorElem = document.getElementById('error');
+    var spinnerElem = document.getElementById('spinner');
 
     showWord();
     
@@ -19,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
             recordElem.addEventListener('click', function() {
                 if (SpeechRec.isRecording()) {
                     recordElem.disabled = true;
+                    spinnerElem.classList.remove('hidden');
                     SpeechRec.stop(function(blob) {
                         var vowel = Word.getVowel();
                         rateVowel(blob, vowel, function(xhrEvent) {
@@ -46,16 +50,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                 msgElem.innerHTML = msg;
                             }
                             recordElem.disabled = false;
-                            recordElem.innerHTML = 'Record';
+                            spinnerElem.classList.add('hidden');
+                            recordTextElem.innerHTML = 'Record';
+                            recordElem.style.color = 'black';
                             //SpeechRec.download(blob); 
                         }, function(error) {
-                            console.log(error);
+                            errorElem.innerHTML = error;
                         });
                     });
                 } else {
                     SpeechRec.start();
                     clearElems();
-                    recordElem.innerHTML = 'Stop';
+                    recordTextElem.innerHTML = 'Stop';
+                    recordElem.style.color = 'red';
                 }
             });
             newWordElem.addEventListener('click', function() {

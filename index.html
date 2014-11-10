@@ -7,19 +7,27 @@
         <script src="js/word.js"></script>
         <script src="js/main.js"></script>
         <link rel="stylesheet" type="text/css" href="css/main.css">
+        <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
     </head>
     <body>
         <div id="container">
-            <h1>
-                <span id="word"></span><span id="ipa"></span>
-            </h1>
-            <button id="record">Record</button>
-            <button id="new-word">New Word</button>
-            <div id="feedback">
-                <p id="msg"></p>
-                <h2 id="score"></h2>
+            <h1>Vowel Tuner</h1>
+            <div id="content">
+                <h1>
+                    <span id="word"></span><span id="ipa"></span>
+                </h1>
+                <button id="record">
+                    <i id="record-img" class="fa fa-microphone"></i>
+                    <span id="record-text">Record</span>
+                </button>
+                <button id="new-word">New Word</button>
+                <div id="feedback">
+                    <i id="spinner" class="fa fa-spinner fa-spin fa-4x hidden"></i>
+                    <p id="msg"></p>
+                    <h2 id="score"></h2>
+                    <p id="error"></p>
+                </div>
             </div>
-            <p id="error"></p>
         </div>
     </body>
 </html>
