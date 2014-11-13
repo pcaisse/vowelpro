@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
@@ -143,7 +144,7 @@ class Signal():
 
         humps = self.get_humps()
         if len(humps) == 0:
-            raise Exception("No main vowel signal detected.")
+            raise Exception("No vowel signal detected.")
         main_hump = humps[0]
         # Only use middle 1/3 of vowel.
         vowel_range = self.get_main_vowel_range(main_hump)
@@ -310,7 +311,7 @@ def get_vowel_score(sample_z, model_z):
         'sample_front_back': sample_front_back,
         'model_front_back': model_front_back,
         'sample_height': sample_height,
-        'model_front_back': model_front_back
+        'model_height': model_height
     }
 
 
@@ -391,5 +392,18 @@ def rate_vowel(file_path, vowel):
 
     
 if __name__ == '__main__':
-    rate_vowel(sys.argv[1], sys.argv[2])
+    
+    parser = argparse.ArgumentParser(description='Rate English vowels.')
+    parser.add_argument('file', metavar='f', help='File path to WAV file of word containing vowel to analyze.')
+    parser.add_argument('vowel', metavar='v', help='Vowel. Must be one of: %s' % FORMANTS.keys())
+    parser.add_argument('--verbose', action='store_true', help='verbose flag' )
+    
+    args = parser.parse_args()
+    
+    rating = rate_vowel(args.file, args.vowel)
+    
+    if args.verbose:
+        print rating
+    else:
+        print rating['score'] 
 
