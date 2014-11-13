@@ -11,11 +11,14 @@ document.addEventListener('DOMContentLoaded', function() {
     var msgElem = document.getElementById('msg');
     var wordElem = document.getElementById('word');
     var ipaElem = document.getElementById('ipa');
+    var playElem = document.getElementById('play');
     var newWordElem = document.getElementById('new-word');
     var errorElem = document.getElementById('error');
     var spinnerElem = document.getElementById('spinner');
+    var audioElem = document.getElementById('audio');
 
     showWord();
+    setAudio();
     
     SpeechRec.init(
         function success() {
@@ -68,6 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
             newWordElem.addEventListener('click', function() {
                 Word.new();
                 showWord();
+                setAudio();
+            });
+            playElem.addEventListener('click', function() {
+                audioElem.play();
             });
         },
         function failure() {
@@ -83,6 +90,10 @@ document.addEventListener('DOMContentLoaded', function() {
         elems.forEach(function(elem) {
             elem.innerHTML = '';
         });
+    }
+
+    function setAudio() {
+        audioElem.src = 'audio/' + Word.getWord() + '.mp3';
     }
 
     function showWord() {
