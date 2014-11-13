@@ -6,7 +6,7 @@ var Word = (function(window) {
         ['i', 'i', 'beat', 'peak', 'beak'],      
         ['I', '026A', 'bit', 'kick', 'kid'],     
         ['e', 'e', 'bait', 'bake', 'cake'],     
-        ['E', '025B', 'bet', 'peck', 'pet'],     
+        ['E', '025B', 'bet', 'deck', 'pet'],     
         ['ae', '00E6', 'bat', 'pack', 'pad'],
         ['u', 'u', 'boot', 'dupe', 'toot'],     
         ['U', '028A', 'put', 'took', 'cook'],     
