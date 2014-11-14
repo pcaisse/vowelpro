@@ -289,7 +289,7 @@ def calc_percent_correct(actual, desired):
     # Account for values that overshoot the desired value.
     # eg) 4.8/5.0 and 5.2/5.0 are both equally correct (96%)
     percent_off = abs(actual - desired) / float(desired)
-    if percent_off > 1.0:
+    if percent_off >= 1.0:
         # Is 100% off or more.
         return 0
     return 1 - percent_off

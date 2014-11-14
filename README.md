@@ -3,7 +3,7 @@ Vowel Pro
 
 This software helps learners of English and the hearing impaired practice their English vowels.
 
-The web app uses the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) which currently has limited support. Vowel Pro only works in Chrome and Firefox. CherryPy is the Python web framework used. 
+The web app uses the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) which currently has limited support. **Vowel Pro only works in Chrome and Firefox.** CherryPy is the Python web framework used. 
 
 Note that the Python script can also be run as a stand-alone file from the command line.
 
