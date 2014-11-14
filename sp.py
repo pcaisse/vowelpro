@@ -282,12 +282,17 @@ def get_dimensions(z_values):
 
 def calc_percent_correct(actual, desired):
 
-    # Account for values that overshoot the desired value.
-    # eg) 750/740 -> 730/740
-    if actual > desired:
-        actual -= (actual - desired) * 2
+    """
+    Calculate the percent correct.
+    """
 
-    return actual / desired
+    # Account for values that overshoot the desired value.
+    # eg) 4.8/5.0 and 5.2/5.0 are both equally correct (96%)
+    percent_off = abs(actual - desired) / float(desired)
+    if percent_off > 1.0:
+        # Is 100% off or more.
+        return 0
+    return 1 - percent_off
 
 
 def get_vowel_score(sample_z, model_z):
@@ -304,6 +309,7 @@ def get_vowel_score(sample_z, model_z):
     height_per = calc_percent_correct(sample_height, model_height)
 
     mean_per = np.mean([front_back_per, height_per])
+
     total_score = int(mean_per * 100)
 
     return {
@@ -354,7 +360,7 @@ def get_z_values(formants, model_formants):
     return sample_z2, model_z
 
 
-def rate_vowel(file_path, vowel):
+def rate_vowel(file_path, vowel, showGraph=False):
 
     if not vowel in FORMANTS:
         raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
@@ -377,6 +383,8 @@ def rate_vowel(file_path, vowel):
     except ValueError as ve:
         raise Exception('Error converting signal to array: %s' % ve)
 
+    # NB: For falling diphtongs (/e/ realized as [eI] and /o/ realized as [oU])
+    #     we want to find the formants for the first vowel.
     signal = Signal(signal, fs) if not vowel in DIPHTHONGS else Signal(signal, fs, vowel_slice_index=1, vowel_slices=7)
     vowel_signal = signal.get_main_vowel_signal()    
 
@@ -386,7 +394,8 @@ def rate_vowel(file_path, vowel):
 
     sample_z, model_z = get_z_values(formants, model_formants)
     
-    # signal.plot()
+    if showGraph:
+        signal.plot()
 
     return get_vowel_score(sample_z, model_z)
 
@@ -395,12 +404,13 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Rate English vowels.')
     parser.add_argument('file', metavar='f', help='File path to WAV file of word containing vowel to analyze.')
-    parser.add_argument('vowel', metavar='v', help='Vowel. Must be one of: %s' % FORMANTS.keys())
-    parser.add_argument('--verbose', action='store_true', help='verbose flag' )
+    parser.add_argument('vowel', metavar='v', help='Vowel to analyze. Must be one of: %s' % FORMANTS.keys())
+    parser.add_argument('--verbose', action='store_true', help='Verbose flag for more verbose output (include normalized dimensions in addition to score).' )
+    parser.add_argument('--graph', action='store_true', help='Graph flag to show graph of waveform, vowel segmentation, FFT, and spectrogram.' )
     
     args = parser.parse_args()
     
-    rating = rate_vowel(args.file, args.vowel)
+    rating = rate_vowel(args.file, args.vowel, args.graph)
     
     if args.verbose:
         print rating
