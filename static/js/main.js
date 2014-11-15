@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function setAudio() {
-        audioElem.src = 'audio/' + Word.getWord() + '.mp3';
+        audioElem.src = 'static/audio/' + Word.getWord() + '.mp3';
     }
 
     function showWord() {

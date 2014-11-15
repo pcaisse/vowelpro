@@ -314,12 +314,13 @@ def get_vowel_score(sample_z, model_z):
 
     return {
         'score': total_score,
-        'sample_front_back': sample_front_back,
-        'model_front_back': model_front_back,
-        'sample_height': sample_height,
-        'model_height': model_height
+        'z_values': {
+            'sample_front_back': sample_front_back,
+            'model_front_back': model_front_back,
+            'sample_height': sample_height,
+            'model_height': model_height
+        }
     }
-
 
 
 def get_rms_diff(a, b):
@@ -337,30 +338,36 @@ def get_rms_diff(a, b):
     return rmsdiff
 
 
-def get_z_values(formants, model_formants):
+def get_f1_f2_f3(sample_formants, model_formants):
 
     """
+    Get [F1, F2, F3] of the sample formants.
+
     Calculate z-values both assuming F0 was found and assuming it was missed. 
-    Compare them to the model and use whichever one is more similar to the model.
+    Compare them to the model and return whichever one is more similar to the model.
     """
 
     model_z = bark_diff(model_formants)
 
-    sample_z1 = bark_diff(formants[:3]) # Assumes F0 was missed.
-    sample_z2 = bark_diff(formants[1:4]) # Assumes F0 was found.
+    sample_formants1 = sample_formants[:3] # Assumes F0 was missed.
+    sample_formants2 = sample_formants[1:4] # Assumes F0 was found.
+    sample_z1 = bark_diff(sample_formants1) 
+    sample_z2 = bark_diff(sample_formants2) 
     
     rms_diff1 = get_rms_diff(sample_z1, model_z)
     rms_diff2 = get_rms_diff(sample_z2, model_z)
 
-    # Guess which of the two ranges of formants actually represents F1, F2, F3
-    # and use that. This is needed because F0 is often missed by the LPC analysis.
     if rms_diff1 < rms_diff2:
-        return sample_z1, model_z
+        return sample_formants1
 
-    return sample_z2, model_z
+    return sample_formants2
 
 
-def rate_vowel(file_path, vowel, showGraph=False):
+def rate_vowel(file_path, vowel, show_graph=False):
+
+    """
+    Rate vowel as compared to model.
+    """
 
     if not vowel in FORMANTS:
         raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
@@ -391,28 +398,39 @@ def rate_vowel(file_path, vowel, showGraph=False):
     formants = get_formants(vowel_signal, fs)[:4]
 
     model_formants = FORMANTS[vowel]
+    sample_formants = get_f1_f2_f3(formants, model_formants)
 
-    sample_z, model_z = get_z_values(formants, model_formants)
+    sample_z = bark_diff(sample_formants)
+    model_z = bark_diff(model_formants)
     
-    if showGraph:
+    if show_graph:
         signal.plot()
 
-    return get_vowel_score(sample_z, model_z)
+    results = get_vowel_score(sample_z, model_z)
+
+    results.update({
+        'formants': {
+            'model': model_formants,
+            'sample': sample_formants
+        }
+    })
+
+    return results
 
     
 if __name__ == '__main__':
     
-    parser = argparse.ArgumentParser(description='Rate English vowels.')
+    parser = argparse.ArgumentParser(description='Rate English vowels (score is out of 100).')
     parser.add_argument('file', metavar='f', help='File path to WAV file of word containing vowel to analyze.')
     parser.add_argument('vowel', metavar='v', help='Vowel to analyze. Must be one of: %s' % FORMANTS.keys())
-    parser.add_argument('--verbose', action='store_true', help='Verbose flag for more verbose output (include normalized dimensions in addition to score).' )
-    parser.add_argument('--graph', action='store_true', help='Graph flag to show graph of waveform, vowel segmentation, FFT, and spectrogram.' )
+    parser.add_argument('--extra', action='store_true', help='Extra flag for extra output (includes formants and normalized Bark Difference z-values).' )
+    parser.add_argument('--graph', action='store_true', help='Graph flag to show graphs (waveform, vowel segmentation, FFT, spectrogram).' )
     
     args = parser.parse_args()
     
     rating = rate_vowel(args.file, args.vowel, args.graph)
     
-    if args.verbose:
+    if args.extra:
         print rating
     else:
         print rating['score'] 

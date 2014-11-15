@@ -32,21 +32,9 @@ if __name__ == '__main__':
             'tools.response_headers.on': True,
             'tools.response_headers.headers': [('Content-Type', 'application/json')],
         },
-        '/js': {
+        '/static': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': 'js'
-        },
-        '/css': {
-            'tools.staticdir.on': True,
-            'tools.staticdir.dir': 'css'
-        },
-        '/fonts': {
-            'tools.staticdir.on': True,
-            'tools.staticdir.dir': 'fonts'
-        },
-        '/audio': {
-            'tools.staticdir.on': True,
-            'tools.staticdir.dir': 'audio'
+            'tools.staticdir.dir': 'static'
         }
     }
     webapp = Speech()

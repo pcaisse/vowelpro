@@ -65,7 +65,7 @@ var SpeechRec = (function(window) {
                         audioContext = new AudioContext();
                         var input = audioContext.createMediaStreamSource(stream);
                         audioRecorder = new Recorder(input, {
-                            'workerPath': 'js/recorder/recorderWorker.js',
+                            'workerPath': 'static/js/recorder/recorderWorker.js',
                             'mono': true
                         });
                         successCallback();
