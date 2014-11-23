@@ -7,6 +7,7 @@ import json
 
 # Absolute directory path of this file.
 DIR_PATH = os.path.dirname(os.path.abspath(__file__))
+LOG_PATH = 'log'
 
 
 class Speech(object):
@@ -21,11 +22,21 @@ class SpeechWebService(object):
         try:
             return json.dumps(vowel.rate_vowel(file.file, vowel_str))
         except Exception as e:
-            print traceback.format_exc()
+            cherrypy.log(e, traceback=True)
             return json.dumps({
                 'error': str(e)
             })
 
+# Set up logging.
+if not os.path.exists(LOG_PATH):
+    os.makedirs(LOG_PATH)
+
+cherrypy.config.update({
+    'log.access_file': os.path.join(LOG_PATH, 'access.log'),
+    'log.error_file': os.path.join(LOG_PATH, 'error.log')
+})
+
+# Configure app.
 conf = {
     '/': {
         'tools.sessions.on': True,
