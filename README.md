@@ -31,7 +31,7 @@ Then use pip to install virtualenv if needed:
 sudo pip install virtualenv
 ```
 
-**NOTE**: scipy requires some other dependencies that are not Python packages, like cython, gcc, gfortran. You must make sure they are installed before proceeding. Please see: http://www.scipy.org/install.html
+**NOTE**: scipy requires some other dependencies that are not Python packages, like cython, gcc, gfortran. You must make sure they are installed before proceeding. Please see: http://www.scipy.org/install.html.
 
 Now that we have pip and virtualenv and the other scipy dependencies installed, we can use virtualdev to set up the Python environment for Vowel Pro.
 
@@ -47,7 +47,7 @@ Then:
 env/bin/pip install -r requirements.txt
 ```
 
-to install the dependencies. Now that all the necessary packages are in place, to run:
+to install the dependencies. Now that all the necessary packages are in place*, to run:
 
 ```
 env/bin/supervisord -c supervisord.conf
@@ -59,6 +59,8 @@ To shutdown:
 env/bin/supervisorctl shutdown
 ```
 
+*numpy is a dependency of scipy but they don't always play nice together. If you have issues installing them, try reinstalling them in this order: numpy, scipy, scikits.talkbox.
+
 
 FAQ
 ---
@@ -66,7 +68,18 @@ FAQ
 Why vowels?
 -----------
 
-There are a couple of reasons. First, [General American English](http://en.wikipedia.org/wiki/General_American) has about a dozen vowel sounds that can be very challanging to master for non-native speakers, yet their accurate realization is crucial to being understood. Second, vowel acoustics are well understood and vowels can be accurately quantified in terms of formants by computer programs. Third, the acoustic analysis performed on the vowel can be mapped directly to articulation. This means that we can not only tell the user how close they are to the model vowel but also provide them with articulatory cues to help them improve.
+There are a couple of reasons. First, [General American English](http://en.wikipedia.org/wiki/General_American) has about a dozen vowel sounds that can be very challanging to master for non-native speakers, yet their accurate realization is crucial to being understood. Consider the following words, all of which are distinguished by the vowel:
+
+* bit
+* beet
+* bat
+* bet
+* but
+* boot
+* bot
+* bought
+
+Second, vowel acoustics are well understood and vowels can be accurately quantified in terms of formants by computer programs. Third, the acoustic analysis performed on the vowel can be mapped directly to articulation. This means that we can not only tell the user how close they are to the model vowel but also provide them with articulatory cues to help them improve.
 
 How does it work?
 -----------------
@@ -83,4 +96,4 @@ Hagiwara, Robert. [Dialect variation and formant frequency: The American English
 Why are the words so similar?
 -----------------------------
 
-All of the words the user is prompted to say are mono-syllabic and have a CVC (consonant-vowel-consonant) structure. The consonants are all [plosives](http://en.wikipedia.org/wiki/Stop_consonant) -- like [p], [b], [t], [d], [k], [g] -- which are caracterized by a burst of air which makes them easier to identify, also making it easier to identify the vowel.  
+All of the words the user is prompted to say are mono-syllabic and have a CVC (consonant-vowel-consonant) structure. The consonants are all [plosives](http://en.wikipedia.org/wiki/Stop_consonant) -- like [p], [b], [t], [d], [k], [g] -- sounds that are caracterized by the blockage of airflow through the vocal tract and then a burst of air. This spike in intensity in the waveform makes them easier to identify, and in turn makes the segmentation of the vowel easier. The same types of words were used in the research on which this software is based.
