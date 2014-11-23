@@ -59,7 +59,7 @@ To shutdown:
 env/bin/supervisorctl shutdown
 ```
 
-*numpy is a dependency of scipy but they don't always play nice together. If you have issues installing them, try reinstalling them in this order: numpy, scipy, scikits.talkbox.
+*numpy is a dependency of scipy but they don't always play nice together. If you have issues installing them, try reinstalling them using `env/bin/pip install [package]` in this order: numpy, scipy, scikits.talkbox.
 
 
 FAQ
@@ -77,7 +77,6 @@ There are a couple of reasons. First, [General American English](http://en.wikip
 * but
 * boot
 * bot
-* bought
 
 Second, vowel acoustics are well understood and vowels can be accurately quantified in terms of formants by computer programs. Third, the acoustic analysis performed on the vowel can be mapped directly to articulation. This means that we can not only tell the user how close they are to the model vowel but also provide them with articulatory cues to help them improve.
 
