@@ -7,7 +7,7 @@ import json
 
 # Absolute directory path of this file.
 DIR_PATH = os.path.dirname(os.path.abspath(__file__))
-LOG_PATH = 'log'
+LOG_FILE_PATH = 'server.conf'
 
 
 class Speech(object):
@@ -27,14 +27,18 @@ class SpeechWebService(object):
                 'error': str(e)
             })
 
-# Set up logging.
-if not os.path.exists(LOG_PATH):
-    os.makedirs(LOG_PATH)
-
-cherrypy.config.update({
-    'log.access_file': os.path.join(LOG_PATH, 'access.log'),
-    'log.error_file': os.path.join(LOG_PATH, 'error.log')
-})
+# Global config.
+if os.path.exists(LOG_FILE_PATH):
+    # Custom config.
+    cherrypy.config.update(LOG_FILE_PATH)
+else:
+    # Default config.
+    cherrypy.config.update({
+        'server.socket_host': '127.0.0.1',
+        'server.socket_port': 8080,
+        'log.access_file': 'access.log',
+        'log.error_file': 'error.log'
+    })
 
 # Configure app.
 conf = {

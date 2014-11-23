@@ -1,2 +1,4 @@
 env
 log
+server.conf
+*.log
