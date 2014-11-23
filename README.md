@@ -13,7 +13,13 @@ License: Vowel Pro is published under the [GPLv3](http://www.gnu.org/copyleft/gp
 Installation
 ------------
 
-Vowel Pro uses Python 2.7. To install its dependencies, you must first have pip installed. If not, run:
+Vowel Pro uses Python 2.7. To install its dependencies, you must first have setuptools and easy_install installed. On Linux, run:
+
+```
+sudo apt-get install python-setuptools
+```
+
+pip must also be installed. If it is not, run:
 
 ```
 sudo easy_install pip
@@ -25,7 +31,9 @@ Then use pip to install virtualenv if needed:
 sudo pip install virtualenv
 ```
 
-Now that we have those two packages installed globally, we can use virtualdev to set up the environment for Vowel Pro. 
+**NOTE**: scipy requires some other dependencies that are not Python packages, like cython, gcc, gfortran. You must make sure they are installed before proceeding. Please see: http://www.scipy.org/install.html
+
+Now that we have pip and virtualenv and the other scipy dependencies installed, we can use virtualdev to set up the Python environment for Vowel Pro.
 
 Assuming you are at the root of the project directory:
 
