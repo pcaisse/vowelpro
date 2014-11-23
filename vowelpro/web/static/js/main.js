@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function rateVowel(blob, vowel, success, failure) {
         var formData = new FormData();
         formData.append('file', blob);
-        formData.append('vowel', vowel);
+        formData.append('vowel_str', vowel);
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', '/rate', true);

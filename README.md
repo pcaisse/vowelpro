@@ -3,11 +3,57 @@ Vowel Pro
 
 This software helps learners of English and the hearing impaired practice their English vowels.
 
-The web app uses the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) which currently has limited support. **Vowel Pro only works in Chrome and Firefox.** CherryPy is the Python web framework used. 
+The web app uses the [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) which currently has limited support. **Vowel Pro only works in Chrome and Firefox.**
 
 Note that the Python script can also be run as a stand-alone file from the command line.
 
 License: Vowel Pro is published under the [GPLv3](http://www.gnu.org/copyleft/gpl.html).
+
+
+Installation
+------------
+
+Vowel Pro uses Python 2.7. To install its dependencies, you must first have pip installed. If not, run:
+
+```
+sudo easy_install pip
+```
+
+Then use pip to install virtualenv if needed:
+
+```
+sudo pip install virtualenv
+```
+
+Now that we have those two packages installed globally, we can use virtualdev to set up the environment for Vowel Pro. 
+
+Assuming you are at the root of the project directory:
+
+```
+virtualenv env
+```
+
+Then:
+
+```
+env/bin/pip install -r requirements.txt
+```
+
+to install the dependencies. Now that all the necessary packages are in place, to run:
+
+```
+env/bin/supervisord -c supervisord.conf
+```
+
+To shutdown:
+
+```
+env/bin/supervisorctl shutdown
+```
+
+
+FAQ
+---
 
 Why vowels?
 -----------
