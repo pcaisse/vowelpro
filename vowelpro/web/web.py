@@ -7,7 +7,7 @@ import json
 
 # Absolute directory path of this file.
 DIR_PATH = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE_PATH = 'server.conf'
+GLOBAL_CONFIG_FILE_PATH = 'server.conf'
 
 
 class Speech(object):
@@ -28,9 +28,9 @@ class SpeechWebService(object):
             })
 
 # Global config.
-if os.path.exists(CONFIG_FILE_PATH):
+if os.path.exists(GLOBAL_CONFIG_FILE_PATH):
     # Custom config.
-    cherrypy.config.update(CONFIG_FILE_PATH)
+    cherrypy.config.update(GLOBAL_CONFIG_FILE_PATH)
 else:
     # Default config.
     cherrypy.config.update({
