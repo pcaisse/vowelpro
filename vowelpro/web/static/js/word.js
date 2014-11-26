@@ -11,7 +11,7 @@ var Word = (function(window) {
         ['u', 'u', 'boot', 'dupe', 'toot'],     
         ['U', '028A', 'put', 'took', 'cook'],     
         ['o', 'o', 'boat', 'toad', 'goat'],     
-        ['a', '0254', 'bought', 'talk', 'caught'],     
+        ['a', 'a', 'bought', 'talk', 'caught'],     
         ['^', '028C', 'cut', 'tuck', 'cup'],     
         ['r', '025D', 'dirt', 'curb', 'bird']    
     ];
