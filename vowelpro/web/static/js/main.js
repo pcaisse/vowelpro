@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var scoreElem = document.getElementById('score');
     var msgElem = document.getElementById('msg');
     var wordElem = document.getElementById('word');
+    var dialectElem = document.getElementById('dialect');
     var ipaElem = document.getElementById('ipa');
     var playElem = document.getElementById('play');
     var newWordElem = document.getElementById('new-word');
@@ -28,7 +29,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     spinnerElem.classList.remove('hidden');
                     SpeechRec.stop(function(blob) {
                         var vowel = Word.getVowel();
-                        rateVowel(blob, vowel, function(xhrEvent) {
+                        var dialect = dialectElem.options[dialectElem.selectedIndex].value;
+                        rateVowel(blob, vowel, dialect, function(xhrEvent) {
                             var response = xhrEvent && xhrEvent.target && 
                                     xhrEvent.target.response && JSON.parse(xhrEvent.target.response);
                             if (!response) {
@@ -102,10 +104,11 @@ document.addEventListener('DOMContentLoaded', function() {
         clearElems();
     }
     
-    function rateVowel(blob, vowel, success, failure) {
+    function rateVowel(blob, vowel, dialect, success, failure) {
         var formData = new FormData();
         formData.append('file', blob);
         formData.append('vowel_str', vowel);
+        formData.append('dialect', dialect);
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', '/rate', true);

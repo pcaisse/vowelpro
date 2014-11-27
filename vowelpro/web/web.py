@@ -18,11 +18,11 @@ class Speech(object):
 class SpeechWebService(object):
     exposed = True
 
-    def POST(self, file, vowel_str):
+    def POST(self, file, vowel_str, dialect):
         try:
-            return json.dumps(vowel.rate_vowel(file.file, vowel_str))
+            return json.dumps(vowel.rate_vowel(file.file, vowel_str, dialect))
         except Exception as e:
-            cherrypy.log(e, traceback=True)
+            cherrypy.log(str(e), traceback=True)
             return json.dumps({
                 'error': str(e)
             })

@@ -9,26 +9,59 @@ from scipy.signal import lfilter, hamming
 from scikits.talkbox import lpc
 
 
-# NB: In General American, these vowels are realized as falling diphtongs.
-DIPHTHONGS = ['e', 'o']
+VOWELS = {
+    'i': 'Close front unrounded',
+    'I': 'Near-close front unrounded',
+    'e': 'Close-mid front unrounded',
+    'E': 'Open-mid front unrounded',
+    'ae': 'Near-open front unrounded',
+    'a': 'Open back unrounded',
+    'o': 'Close-mid back rounded',
+    'U': 'Near-close back rounded',
+    'u': 'Close back rounded',
+    '^': 'Open-mid back unrounded',
+    'r': 'Rhotic'    
+}
 
 
 FORMANTS = {
-    # See: Dialect variation and formant frequency: The American English vowels revisited
-    #      Robert Hagiwara
-    # http://www.docin.com/p-101062744.html
-    # NB: Only the data for male informants is used. Normalization seems to entirely account for phisiological differences.
-    'i': [291, 2338, 2920],      
-    'I': [418, 1807, 2589],     
-    'e': [403, 2059, 2690],     
-    'E': [529, 1670, 2528],     
-    'ae': [685, 1601, 2524],
-    'u': [323, 1417, 2399],     
-    'U': [441, 1366, 2446],     
-    'o': [437, 1188, 2430],     
-    'a': [710, 1221, 2405],     
-    '^': [574, 1415, 2496],     
-    'r': [429, 1362, 1679]     
+    # [F1, F2, F3]
+    # NB: Only the data for male informants is used. Normalization seems to 
+    #     entirely account for phisiological differences.
+    'california': {
+        # See: Dialect variation and formant frequency: The American English vowels revisited
+        #      Robert Hagiwara, 1997
+        # http://www.docin.com/p-101062744.html
+        'i': [291, 2338, 2920],      
+        'I': [418, 1807, 2589],     
+        'e': [403, 2059, 2690],     
+        'E': [529, 1670, 2528],     
+        'ae': [685, 1601, 2524],
+        'a': [710, 1221, 2405],     
+        'o': [437, 1188, 2430],     
+        'U': [441, 1366, 2446],     
+        'u': [323, 1417, 2399],     
+        '^': [574, 1415, 2496],     
+        'r': [429, 1362, 1679]     
+    },
+    'michigan': {
+        # See: Acoustic Characteristic of American English Vowels
+        #      Hillenbrand et al, 1995
+        # http://talkingneanderthal.com/HillenbrandGettyClarkWheeler.pdf
+        'i': [342, 2322, 3000],      
+        'I': [427, 2034, 2684],     
+        'e': [476, 2089, 2691],     
+        'E': [580, 1799, 2605],     
+        'ae': [588, 1952, 2601],
+        'a': [768, 1333, 2522],     
+        'O': [652, 997, 2538],     
+        'o': [497, 910, 2459],     
+        'U': [469, 1122, 2434],     
+        'u': [378, 997, 2343],     
+        '^': [623, 1200, 2550],     
+        'r': [474, 1379, 1710],
+        'DIPHTHONGS': ['e', 'o'] # Falling diphtongs (/e/ realized as [eI] and /o/ realized as [oU])    
+    }
 }
 
 
@@ -362,14 +395,22 @@ def get_f1_f2_f3(sample_formants, model_formants):
     return sample_formants2
 
 
-def rate_vowel(file_path, vowel, show_graph=False):
+def rate_vowel(file_path, vowel, dialect, show_graph=False):
 
     """
     Rate vowel as compared to model.
     """
 
-    if not vowel in FORMANTS:
-        raise Exception('Vowel not recognized. Must be one of: %s' % FORMANTS.keys())
+    if not dialect in FORMANTS:
+        raise Exception('Dialect not recognized. Must be one of: %s' % FORMANTS.keys())
+
+    if not vowel in VOWELS:
+        raise Exception('Vowel not recognized. Must be one of: %s' % VOWELS.keys())
+
+    dialect = FORMANTS[dialect]
+
+    if not vowel in dialect:
+        raise Exception('Vowel not found in selected dialect. Must be one of: %s' % dialect.keys())
 
     signal = None
     fs = 0
@@ -389,14 +430,19 @@ def rate_vowel(file_path, vowel, show_graph=False):
     except ValueError as ve:
         raise Exception('Error converting signal to array: %s' % ve)
 
-    # NB: For falling diphtongs (/e/ realized as [eI] and /o/ realized as [oU])
-    #     we want to find the formants for the first vowel.
-    signal = Signal(signal, fs) if not vowel in DIPHTHONGS else Signal(signal, fs, vowel_slice_index=1, vowel_slices=7)
+    diphthongs = 'DIPHTHONGS' in dialect and dialect['DIPHTHONGS']
+
+    # NB: For falling diphtongs we want to find the formants for the first vowel only.
+    kwargs = {}
+    if diphthongs and len(diphthongs) > 0 and vowel in diphthongs:
+        kwargs = dict(vowel_slice_index=1, vowel_slices=7)
+
+    signal = Signal(signal, fs, **kwargs)
     vowel_signal = signal.get_main_vowel_signal()    
 
     formants = get_formants(vowel_signal, fs)[:4]
 
-    model_formants = FORMANTS[vowel]
+    model_formants = dialect[vowel]
     sample_formants = get_f1_f2_f3(formants, model_formants)
 
     sample_z = bark_diff(sample_formants)
@@ -421,13 +467,14 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Rate English vowels (score is out of 100).')
     parser.add_argument('file', metavar='f', help='File path to WAV file of word containing vowel to analyze.')
-    parser.add_argument('vowel', metavar='v', help='Vowel to analyze. Must be one of: %s' % FORMANTS.keys())
+    parser.add_argument('vowel', metavar='v', help='Vowel to analyze. Must be one of: %s' % VOWELS.keys())
+    parser.add_argument('dialect', metavar='d', help='Dialect to compare against. Must be one of: %s' % FORMANTS.keys())
     parser.add_argument('--extra', action='store_true', help='Extra flag for extra output (includes formants and normalized Bark Difference z-values).' )
     parser.add_argument('--graph', action='store_true', help='Graph flag to show graphs (waveform, vowel segmentation, FFT, spectrogram).' )
     
     args = parser.parse_args()
     
-    rating = rate_vowel(args.file, args.vowel, args.graph)
+    rating = rate_vowel(args.file, args.vowel, args.dialect, args.graph)
     
     if args.extra:
         print rating
