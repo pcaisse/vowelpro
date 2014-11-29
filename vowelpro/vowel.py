@@ -2,11 +2,17 @@ import argparse
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
-import wave
 import math
 from scipy import stats
 from scipy.signal import lfilter, hamming
 from scikits.talkbox import lpc
+
+
+FILE_TYPES = {
+    'wav': 1,
+    'mp3': 2,
+    'ogg': 3
+}
 
 
 VOWELS = {
@@ -73,8 +79,8 @@ class Signal():
 
     def __init__(self, signal, fs, bucket_size=200, vowel_slices=5, vowel_slice_index=3):
         self.signal = signal
-        self.len = len(signal)
         self.fs = fs
+        self.len = len(signal)
         self.bucket_size = bucket_size
         self.total_duration_sec = self.len / float(self.fs)
         self.sec_per_x = self.total_duration_sec / float(self.len)
@@ -401,6 +407,17 @@ def rate_vowel(file_path, vowel, dialect, show_graph=False):
     Rate vowel as compared to model.
     """
 
+    file_type = 0
+
+    try:
+        file_ext = file_path.split('.').pop().lower()
+        file_type = FILE_TYPES[file_ext]
+    except:
+        raise Exception('Incorrect file type. Must be one of: %s' % FILE_TYPES.keys())
+
+    if not dialect in FORMANTS:
+        raise Exception('Dialect not recognized. Must be one of: %s' % FORMANTS.keys())
+
     if not dialect in FORMANTS:
         raise Exception('Dialect not recognized. Must be one of: %s' % FORMANTS.keys())
 
@@ -418,12 +435,34 @@ def rate_vowel(file_path, vowel, dialect, show_graph=False):
     # Read signal from file.
     # NB: Needs to be mono. Does not work correctly with stereo.
     try:
-        spf = wave.open(file_path, 'r')
-        fs = spf.getframerate()
-        signal = spf.readframes(-1)
-        spf.close()
+
+        if file_type == FILE_TYPES['wav']:
+            # WAV file
+            import wave
+
+            spf = wave.open(file_path, 'r')
+            fs = spf.getframerate()
+            signal = spf.readframes(-1)
+            spf.close()
+        else:
+            # MP3 or OGG
+            from pydub import AudioSegment
+
+            if file_type == FILE_TYPES['mp3']:
+                audio = AudioSegment.from_mp3(file_path)
+            else:
+                audio = AudioSegment.from_ogg(file_path)
+
+            signal = audio._data
+            fs = audio.frame_rate
+
     except Exception as e:
         raise Exception('Error reading signal from file: %s' % e)
+
+    # Truncate to nearest 16.
+    signal_len = len(signal)
+    signal_len = signal_len - (signal_len % 16)
+    signal = signal[:signal_len]
 
     try:
         signal = np.fromstring(signal, 'Int16')
