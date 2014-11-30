@@ -1,17 +1,19 @@
 import argparse
 import sys
+import os.path
 import matplotlib.pyplot as plt
 import numpy as np
 import math
 from scipy import stats
 from scipy.signal import lfilter, hamming
 from scikits.talkbox import lpc
+from pydub import AudioSegment
 
 
 FILE_TYPES = {
-    'wav': 1,
-    'mp3': 2,
-    'ogg': 3
+    'wav': 'wav',
+    'mp3': 'mp3',
+    'ogg': 'ogg'
 }
 
 
@@ -401,18 +403,33 @@ def get_f1_f2_f3(sample_formants, model_formants):
     return sample_formants2
 
 
-def rate_vowel(file_path, vowel, dialect, show_graph=False):
+def get_file_ext(filename):
+    return os.path.splitext(filename)[1]
+
+
+def rate_vowel(file, vowel, dialect, file_type, show_graph=False):
 
     """
     Rate vowel as compared to model.
     """
 
-    file_type = 0
-
     try:
-        file_ext = file_path.split('.').pop().lower()
-        file_type = FILE_TYPES[file_ext]
+        # `file` may be a File object or a file path (string) 
+        if not file_type:
+            file_ext = None
+
+            if type(file) is str:
+                # `file` is file path.
+                file_ext = get_file_ext(file)
+            else:
+                # `file` is File object.
+                file_ext = get_file_ext(file.name)
+
+            file_type = FILE_TYPES[file_ext]
     except:
+        raise Exception('Error determining file type. It may need to be passed explicitly. Must be one of: %s' % FILE_TYPES.keys())
+
+    if not file_type in FILE_TYPES:
         raise Exception('Incorrect file type. Must be one of: %s' % FILE_TYPES.keys())
 
     if not dialect in FORMANTS:
@@ -434,27 +451,20 @@ def rate_vowel(file_path, vowel, dialect, show_graph=False):
 
     # Read signal from file.
     # NB: Needs to be mono. Does not work correctly with stereo.
-    try:
+    try:     
 
         if file_type == FILE_TYPES['wav']:
-            # WAV file
-            import wave
-
-            spf = wave.open(file_path, 'r')
-            fs = spf.getframerate()
-            signal = spf.readframes(-1)
-            spf.close()
+            # WAV
+            audio = AudioSegment.from_wav(file)
+        elif file_type == FILE_TYPES['mp3']:
+            # MP3
+            audio = AudioSegment.from_mp3(file)
         else:
-            # MP3 or OGG
-            from pydub import AudioSegment
+            # OGG
+            audio = AudioSegment.from_ogg(file)
 
-            if file_type == FILE_TYPES['mp3']:
-                audio = AudioSegment.from_mp3(file_path)
-            else:
-                audio = AudioSegment.from_ogg(file_path)
-
-            signal = audio._data
-            fs = audio.frame_rate
+        signal = audio._data
+        fs = audio.frame_rate
 
     except Exception as e:
         raise Exception('Error reading signal from file: %s' % e)
@@ -505,7 +515,7 @@ def rate_vowel(file_path, vowel, dialect, show_graph=False):
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Rate English vowels (score is out of 100).')
-    parser.add_argument('file', metavar='f', help='File path to WAV file of word containing vowel to analyze.')
+    parser.add_argument('file', metavar='f', help='File path to file of word containing vowel to analyze. File type must be one of: %s' % FILE_TYPES.keys())
     parser.add_argument('vowel', metavar='v', help='Vowel to analyze. Must be one of: %s' % VOWELS.keys())
     parser.add_argument('dialect', metavar='d', help='Dialect to compare against. Must be one of: %s' % FORMANTS.keys())
     parser.add_argument('--extra', action='store_true', help='Extra flag for extra output (includes formants and normalized Bark Difference z-values).' )
@@ -513,7 +523,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    rating = rate_vowel(args.file, args.vowel, args.dialect, args.graph)
+    rating = rate_vowel(args.file, args.vowel, args.dialect, None, args.graph)
     
     if args.extra:
         print rating

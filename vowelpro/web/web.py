@@ -10,17 +10,17 @@ DIR_PATH = os.path.dirname(os.path.abspath(__file__))
 GLOBAL_CONFIG_FILE_PATH = 'server.conf'
 
 
-class Speech(object):
+class VowelPro(object):
     @cherrypy.expose
     def index(self):
         return file(os.path.join(DIR_PATH, "index.html"))
 
-class SpeechWebService(object):
+class VowelProWebService(object):
     exposed = True
 
     def POST(self, file, vowel_str, dialect):
         try:
-            return json.dumps(vowel.rate_vowel(file.file, vowel_str, dialect))
+            return json.dumps(vowel.rate_vowel(file.file, vowel_str, dialect, 'wav'))
         except Exception as e:
             cherrypy.log(str(e), traceback=True)
             return json.dumps({
@@ -57,6 +57,6 @@ conf = {
     }
 }
 
-webapp = Speech()
-webapp.rate = SpeechWebService()
+webapp = VowelPro()
+webapp.rate = VowelProWebService()
 cherrypy.quickstart(webapp, '/', conf)
