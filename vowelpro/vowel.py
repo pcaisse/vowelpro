@@ -1,6 +1,5 @@
 import argparse
 import sys
-import os.path
 import matplotlib.pyplot as plt
 import numpy as np
 import math
@@ -32,7 +31,7 @@ VOWELS = {
 }
 
 
-FORMANTS = {
+DIALECTS = {
     # [F1, F2, F3]
     # NB: Only the data for male informants is used. Normalization seems to 
     #     entirely account for phisiological differences.
@@ -73,10 +72,10 @@ FORMANTS = {
 }
 
 
-class Signal():
+class VowelSignal():
 
     """
-    Signal wrapper.
+    Vowel signal wrapper.
     """
 
     def __init__(self, signal, fs, bucket_size=200, vowel_slices=5, vowel_slice_index=3):
@@ -160,6 +159,7 @@ class Signal():
         Get a list of vowel range (from start index to end index).
         """
 
+        # TODO: Make this better (possibly using low pass filter?)
         range_between_spikes = end_index - start_index
         fraction_of_range = int(range_between_spikes / num_segments)
         vowel_x1 = start_index + fraction_of_range * which_segment_to_use
@@ -404,44 +404,62 @@ def get_f1_f2_f3(sample_formants, model_formants):
 
 
 def get_file_ext(filename):
-    return os.path.splitext(filename)[1]
+    return filename.split('.').pop()
 
 
-def rate_vowel(file, vowel, dialect, file_type, show_graph=False):
+def get_file_type(file, file_type):
+
+    # `file` may be a File object or a file path (string) 
+    if not file_type:
+        file_ext = None
+
+        if type(file) is str:
+            # `file` is file path.
+            file_ext = get_file_ext(file)
+        else:
+            # `file` is File object.
+            file_ext = get_file_ext(file.name)
+
+        file_type = FILE_TYPES[file_ext]
+
+    return file_type
+
+
+def rate_vowel_by_direct_comparison(sample_file, model_file, sample_file_type):
 
     """
-    Rate vowel as compared to model.
+    Rate sample vowel by directly comparing it to a model file.
+    """
+
+    # Find formants for both files at the beginning, middle, and end of vowel.
+    # and then average the scores to get the final score.
+    pass
+
+
+def rate_vowel_by_dialect(file, vowel, dialect, file_type, show_graph=False):
+
+    """
+    Rate vowel by comparing formant data for a given model dialect.
     """
 
     try:
-        # `file` may be a File object or a file path (string) 
-        if not file_type:
-            file_ext = None
-
-            if type(file) is str:
-                # `file` is file path.
-                file_ext = get_file_ext(file)
-            else:
-                # `file` is File object.
-                file_ext = get_file_ext(file.name)
-
-            file_type = FILE_TYPES[file_ext]
+        file_type = get_file_type(file, file_type)
     except:
         raise Exception('Error determining file type. It may need to be passed explicitly. Must be one of: %s' % FILE_TYPES.keys())
 
     if not file_type in FILE_TYPES:
         raise Exception('Incorrect file type. Must be one of: %s' % FILE_TYPES.keys())
 
-    if not dialect in FORMANTS:
-        raise Exception('Dialect not recognized. Must be one of: %s' % FORMANTS.keys())
+    if not dialect in DIALECTS:
+        raise Exception('Dialect not recognized. Must be one of: %s' % DIALECTS.keys())
 
-    if not dialect in FORMANTS:
-        raise Exception('Dialect not recognized. Must be one of: %s' % FORMANTS.keys())
+    if not dialect in DIALECTS:
+        raise Exception('Dialect not recognized. Must be one of: %s' % DIALECTS.keys())
 
     if not vowel in VOWELS:
         raise Exception('Vowel not recognized. Must be one of: %s' % VOWELS.keys())
 
-    dialect = FORMANTS[dialect]
+    dialect = DIALECTS[dialect]
 
     if not vowel in dialect:
         raise Exception('Vowel not found in selected dialect. Must be one of: %s' % dialect.keys())
@@ -469,11 +487,14 @@ def rate_vowel(file, vowel, dialect, file_type, show_graph=False):
     except Exception as e:
         raise Exception('Error reading signal from file: %s' % e)
 
+    print "fs: %i" % fs
+
     # Truncate to nearest 16.
     signal_len = len(signal)
     signal_len = signal_len - (signal_len % 16)
     signal = signal[:signal_len]
 
+    # Convert to numpy array.
     try:
         signal = np.fromstring(signal, 'Int16')
     except ValueError as ve:
@@ -486,7 +507,7 @@ def rate_vowel(file, vowel, dialect, file_type, show_graph=False):
     if diphthongs and len(diphthongs) > 0 and vowel in diphthongs:
         kwargs = dict(vowel_slice_index=1, vowel_slices=7)
 
-    signal = Signal(signal, fs, **kwargs)
+    signal = VowelSignal(signal, fs, **kwargs)
     vowel_signal = signal.get_main_vowel_signal()    
 
     formants = get_formants(vowel_signal, fs)[:4]
@@ -517,13 +538,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Rate English vowels (score is out of 100).')
     parser.add_argument('file', metavar='f', help='File path to file of word containing vowel to analyze. File type must be one of: %s' % FILE_TYPES.keys())
     parser.add_argument('vowel', metavar='v', help='Vowel to analyze. Must be one of: %s' % VOWELS.keys())
-    parser.add_argument('dialect', metavar='d', help='Dialect to compare against. Must be one of: %s' % FORMANTS.keys())
+    parser.add_argument('dialect', metavar='d', help='Dialect to compare against. Must be one of: %s' % DIALECTS.keys())
     parser.add_argument('--extra', action='store_true', help='Extra flag for extra output (includes formants and normalized Bark Difference z-values).' )
     parser.add_argument('--graph', action='store_true', help='Graph flag to show graphs (waveform, vowel segmentation, FFT, spectrogram).' )
     
     args = parser.parse_args()
     
-    rating = rate_vowel(args.file, args.vowel, args.dialect, None, args.graph)
+    rating = rate_vowel_by_dialect(args.file, args.vowel, args.dialect, None, args.graph)
     
     if args.extra:
         print rating
