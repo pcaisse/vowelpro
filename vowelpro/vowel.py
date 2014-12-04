@@ -404,7 +404,7 @@ def get_f1_f2_f3(sample_formants, model_formants):
 
 
 def get_file_ext(filename):
-    return os.path.splitext(filename)[1]
+    return filename.split('.').pop()
 
 
 def rate_vowel(file, vowel, dialect, file_type, show_graph=False):
