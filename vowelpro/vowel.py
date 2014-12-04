@@ -286,7 +286,7 @@ def get_formants(x, fs):
     x1 = x * w
 
     # Apply pre-emphasis filter.
-    # x1 = lfilter([1.0], [1.0, -0.63], x1)
+    x1 = preemphasis(x1, 0.63)
 
     # Get LPC.
     ncoeff = 2 + fs / 1000
@@ -303,6 +303,18 @@ def get_formants(x, fs):
     frqs = sorted(angz * (fs / (2 * math.pi)))
 
     return frqs
+
+
+def preemphasis(signal,coeff=0.95):
+    """perform preemphasis on the input signal.
+    
+    :param signal: The signal to filter.
+    :param coeff: The preemphasis coefficient. 0 is no filter, default is 0.95.
+    :returns: the filtered signal.
+
+    From: https://github.com/jameslyons/python_speech_features/blob/master/features/sigproc.py
+    """    
+    return np.append(signal[0],signal[1:]-coeff*signal[:-1])
 
 
 def get_dimensions(z_values):
@@ -338,7 +350,7 @@ def calc_percent_correct(actual, desired):
 def get_vowel_score(sample_z, model_z):
 
     """
-    Return vowel score (0-100) as well as some feedback/tips on their pronunciation.
+    Return vowel score (0-100).
     """
 
     sample_front_back, sample_height = get_dimensions(sample_z)
