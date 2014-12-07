@@ -1,6 +1,6 @@
-import argparse
 import sys
 import matplotlib.pyplot as plt
+from matplotlib.mlab import find
 import numpy as np
 import math
 from scipy import stats
@@ -294,7 +294,7 @@ def get_formants(x, fs):
 
     # Get roots.
     rts = np.roots(A)
-    rts = [r for r in rts if np.imag(r) > 0]
+    rts = [r for r in rts if np.imag(r) > 0.01]
 
     # Get angles.
     angz = np.arctan2(np.imag(rts), np.real(rts))
@@ -415,15 +415,46 @@ def get_f1_f2_f3(sample_formants, model_formants):
     return sample_formants2
 
 
+def get_f1_f2_f3_direct(sample_formants, model_formants):
+
+    """
+    Get [F1, F2, F3] of the sample and model formants.
+
+    Calculate z-values both assuming F0 was found and assuming it was missed. 
+    """
+
+    sample_formants1 = sample_formants[:3] # Assumes F0 was missed.
+    sample_formants2 = sample_formants[1:4] # Assumes F0 was found.
+    sample_z1 = bark_diff(sample_formants1) 
+    sample_z2 = bark_diff(sample_formants2) 
+    
+    model_formants1 = model_formants[:3] # Assumes F0 was missed.
+    model_formants2 = model_formants[1:4] # Assumes F0 was found.
+    model_z1 = bark_diff(model_formants1) 
+    model_z2 = bark_diff(model_formants2) 
+
+    rms_diffs = {
+        # key: [rms_diff, return vals]
+        's1m1': [get_rms_diff(sample_z1, model_z1), [sample_formants1, model_formants1]],
+        's2m1': [get_rms_diff(sample_z2, model_z1), [sample_formants2, model_formants1]],
+        's1m2': [get_rms_diff(sample_z1, model_z2), [sample_formants1, model_formants2]],
+        's2m2': [get_rms_diff(sample_z2, model_z2), [sample_formants2, model_formants2]]
+    }
+
+    sorted_rms_diffs = sorted(rms_diffs.items(), key=lambda x: x[1][0])
+
+    return sorted_rms_diffs[0][1][1]
+
+
 def get_file_ext(filename):
     return filename.split('.').pop()
 
 
-def get_file_type(file, file_type):
+def get_file_type(file, file_type=None):
 
     # `file` may be a File object or a file path (string) 
     if not file_type:
-        file_ext = None
+        file_ext = FILE_TYPES['wav']
 
         if type(file) is str:
             # `file` is file path.
@@ -437,47 +468,22 @@ def get_file_type(file, file_type):
     return file_type
 
 
-def rate_vowel_by_direct_comparison(sample_file, model_file, sample_file_type):
+def read_signal(file):
 
     """
-    Rate sample vowel by directly comparing it to a model file.
+    Read signal from file.
     """
-
-    # Find formants for both files at the beginning, middle, and end of vowel.
-    # and then average the scores to get the final score.
-    pass
-
-
-def rate_vowel_by_dialect(file, vowel, dialect, file_type, show_graph=False):
-
-    """
-    Rate vowel by comparing formant data for a given model dialect.
-    """
-
-    try:
-        file_type = get_file_type(file, file_type)
-    except:
-        raise Exception('Error determining file type. It may need to be passed explicitly. Must be one of: %s' % FILE_TYPES.keys())
-
-    if not file_type in FILE_TYPES:
-        raise Exception('Incorrect file type. Must be one of: %s' % FILE_TYPES.keys())
-
-    if not dialect in DIALECTS:
-        raise Exception('Dialect not recognized. Must be one of: %s' % DIALECTS.keys())
-
-    if not dialect in DIALECTS:
-        raise Exception('Dialect not recognized. Must be one of: %s' % DIALECTS.keys())
-
-    if not vowel in VOWELS:
-        raise Exception('Vowel not recognized. Must be one of: %s' % VOWELS.keys())
-
-    dialect = DIALECTS[dialect]
-
-    if not vowel in dialect:
-        raise Exception('Vowel not found in selected dialect. Must be one of: %s' % dialect.keys())
 
     signal = None
     fs = 0
+
+    try:
+        file_type = get_file_type(file)
+    except:
+        raise Exception('Error determining file type. Must be one of: %s' % FILE_TYPES.keys())
+
+    if not file_type in FILE_TYPES:
+        raise Exception('Incorrect file type. Must be one of: %s' % FILE_TYPES.keys())
 
     # Read signal from file.
     # NB: Needs to be mono. Does not work correctly with stereo.
@@ -499,9 +505,7 @@ def rate_vowel_by_dialect(file, vowel, dialect, file_type, show_graph=False):
     except Exception as e:
         raise Exception('Error reading signal from file: %s' % e)
 
-    print "fs: %i" % fs
-
-    # Truncate to nearest 16.
+    # Truncate to nearest 16 bits.
     signal_len = len(signal)
     signal_len = signal_len - (signal_len % 16)
     signal = signal[:signal_len]
@@ -511,6 +515,66 @@ def rate_vowel_by_dialect(file, vowel, dialect, file_type, show_graph=False):
         signal = np.fromstring(signal, 'Int16')
     except ValueError as ve:
         raise Exception('Error converting signal to array: %s' % ve)
+
+    return signal, fs
+
+
+def rate_vowel_by_direct_comparison(sample_file, model_file):
+
+    """
+    Rate sample vowel by directly comparing it to a model file.
+    """
+    
+    sample_signal, sample_fs = read_signal(sample_file)
+    model_signal, model_fs = read_signal(model_file)
+
+    sample_signal = VowelSignal(sample_signal, sample_fs)
+    model_signal = VowelSignal(model_signal, model_fs)
+
+    sample_vowel_signal = sample_signal.get_main_vowel_signal()    
+    model_vowel_signal = model_signal.get_main_vowel_signal()    
+
+    sample_formants = get_formants(sample_vowel_signal, sample_fs)[:4]
+    model_formants = get_formants(model_vowel_signal, model_fs)[:4]
+
+    sample_formants, model_formants = get_f1_f2_f3_direct(sample_formants, model_formants)
+
+    sample_z = bark_diff(sample_formants)
+    model_z = bark_diff(model_formants)
+
+    results = get_vowel_score(sample_z, model_z)
+
+    results.update({
+        'formants': {
+            'model': model_formants,
+            'sample': sample_formants
+        }
+    })
+
+    return results
+
+
+def rate_vowel_by_dialect(file, vowel, dialect, show_graph=False):
+
+    """
+    Rate vowel by comparing formant data for a given model dialect.
+    """
+
+    if not dialect in DIALECTS:
+        raise Exception('Dialect not recognized. Must be one of: %s' % DIALECTS.keys())
+
+    if not dialect in DIALECTS:
+        raise Exception('Dialect not recognized. Must be one of: %s' % DIALECTS.keys())
+
+    if not vowel in VOWELS:
+        raise Exception('Vowel not recognized. Must be one of: %s' % VOWELS.keys())
+
+    dialect = DIALECTS[dialect]
+
+    if not vowel in dialect:
+        raise Exception('Vowel not found in selected dialect. Must be one of: %s' % dialect.keys())
+
+    signal, fs = read_signal(file)
 
     diphthongs = 'DIPHTHONGS' in dialect and dialect['DIPHTHONGS']
 
@@ -523,6 +587,8 @@ def rate_vowel_by_dialect(file, vowel, dialect, file_type, show_graph=False):
     vowel_signal = signal.get_main_vowel_signal()    
 
     formants = get_formants(vowel_signal, fs)[:4]
+
+    print formants
 
     model_formants = dialect[vowel]
     sample_formants = get_f1_f2_f3(formants, model_formants)
@@ -543,23 +609,3 @@ def rate_vowel_by_dialect(file, vowel, dialect, file_type, show_graph=False):
     })
 
     return results
-
-    
-if __name__ == '__main__':
-    
-    parser = argparse.ArgumentParser(description='Rate English vowels (score is out of 100).')
-    parser.add_argument('file', metavar='f', help='File path to file of word containing vowel to analyze. File type must be one of: %s' % FILE_TYPES.keys())
-    parser.add_argument('vowel', metavar='v', help='Vowel to analyze. Must be one of: %s' % VOWELS.keys())
-    parser.add_argument('dialect', metavar='d', help='Dialect to compare against. Must be one of: %s' % DIALECTS.keys())
-    parser.add_argument('--extra', action='store_true', help='Extra flag for extra output (includes formants and normalized Bark Difference z-values).' )
-    parser.add_argument('--graph', action='store_true', help='Graph flag to show graphs (waveform, vowel segmentation, FFT, spectrogram).' )
-    
-    args = parser.parse_args()
-    
-    rating = rate_vowel_by_dialect(args.file, args.vowel, args.dialect, None, args.graph)
-    
-    if args.extra:
-        print rating
-    else:
-        print rating['score'] 
-
