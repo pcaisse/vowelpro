@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import matplotlib.pyplot as plt
 from matplotlib.mlab import find
 import numpy as np
@@ -375,75 +375,75 @@ def get_vowel_score(sample_z, model_z):
     }
 
 
-def get_rms_diff(a, b):
+# def get_rms_diff(a, b):
 
-    """
-    Measure the average difference of the curves.
+#     """
+#     Measure the average difference of the curves.
 
-    See: http://programmers.stackexchange.com/questions/100303/correlation-between-two-curves
-    """
+#     See: http://programmers.stackexchange.com/questions/100303/correlation-between-two-curves
+#     """
 
-    rmsdiff = 0
-    for (x, y) in zip(a, b):
-        rmsdiff += (x - y) ** 2  # NOTE: overflow danger if the vectors are long!
-    rmsdiff = math.sqrt(rmsdiff / min(len(a), len(b)))    
-    return rmsdiff
+#     rmsdiff = 0
+#     for (x, y) in zip(a, b):
+#         rmsdiff += (x - y) ** 2  # NOTE: overflow danger if the vectors are long!
+#     rmsdiff = math.sqrt(rmsdiff / min(len(a), len(b)))    
+#     return rmsdiff
 
 
-def get_f1_f2_f3(sample_formants, model_formants):
+# def get_f1_f2_f3(sample_formants, model_formants):
 
-    """
-    Get [F1, F2, F3] of the sample formants.
+#     """
+#     Get [F1, F2, F3] of the sample formants.
 
-    Calculate z-values both assuming F0 was found and assuming it was missed. 
-    Compare them to the model and return whichever one is more similar to the model.
-    """
+#     Calculate z-values both assuming F0 was found and assuming it was missed. 
+#     Compare them to the model and return whichever one is more similar to the model.
+#     """
 
-    model_z = bark_diff(model_formants)
+#     model_z = bark_diff(model_formants)
 
-    sample_formants1 = sample_formants[:3] # Assumes F0 was missed.
-    sample_formants2 = sample_formants[1:4] # Assumes F0 was found.
-    sample_z1 = bark_diff(sample_formants1) 
-    sample_z2 = bark_diff(sample_formants2) 
+#     sample_formants1 = sample_formants[:3] # Assumes F0 was missed.
+#     sample_formants2 = sample_formants[1:4] # Assumes F0 was found.
+#     sample_z1 = bark_diff(sample_formants1) 
+#     sample_z2 = bark_diff(sample_formants2) 
     
-    rms_diff1 = get_rms_diff(sample_z1, model_z)
-    rms_diff2 = get_rms_diff(sample_z2, model_z)
+#     rms_diff1 = get_rms_diff(sample_z1, model_z)
+#     rms_diff2 = get_rms_diff(sample_z2, model_z)
 
-    if rms_diff1 < rms_diff2:
-        return sample_formants1
+#     if rms_diff1 < rms_diff2:
+#         return sample_formants1
 
-    return sample_formants2
+#     return sample_formants2
 
 
-def get_f1_f2_f3_direct(sample_formants, model_formants):
+# def get_f1_f2_f3_direct(sample_formants, model_formants):
 
-    """
-    Get [F1, F2, F3] of the sample and model formants.
+#     """
+#     Get [F1, F2, F3] of the sample and model formants.
 
-    Calculate z-values both assuming F0 was found and assuming it was missed. 
-    """
+#     Calculate z-values both assuming F0 was found and assuming it was missed. 
+#     """
 
-    sample_formants1 = sample_formants[:3] # Assumes F0 was missed.
-    sample_formants2 = sample_formants[1:4] # Assumes F0 was found.
-    sample_z1 = bark_diff(sample_formants1) 
-    sample_z2 = bark_diff(sample_formants2) 
+#     sample_formants1 = sample_formants[:3] # Assumes F0 was missed.
+#     sample_formants2 = sample_formants[1:4] # Assumes F0 was found.
+#     sample_z1 = bark_diff(sample_formants1) 
+#     sample_z2 = bark_diff(sample_formants2) 
     
-    model_formants1 = model_formants[:3] # Assumes F0 was missed.
-    model_formants2 = model_formants[1:4] # Assumes F0 was found.
-    model_z1 = bark_diff(model_formants1) 
-    model_z2 = bark_diff(model_formants2) 
+#     model_formants1 = model_formants[:3] # Assumes F0 was missed.
+#     model_formants2 = model_formants[1:4] # Assumes F0 was found.
+#     model_z1 = bark_diff(model_formants1) 
+#     model_z2 = bark_diff(model_formants2) 
 
-    rms_diffs = {
-        # key: [rms_diff, return vals]
-        's1m1': [get_rms_diff(sample_z1, model_z1), [sample_formants1, model_formants1]],
-        's2m1': [get_rms_diff(sample_z2, model_z1), [sample_formants2, model_formants1]],
-        's1m2': [get_rms_diff(sample_z1, model_z2), [sample_formants1, model_formants2]],
-        's2m2': [get_rms_diff(sample_z2, model_z2), [sample_formants2, model_formants2]]
-    }
+#     rms_diffs = {
+#         # key: [rms_diff, return vals]
+#         's1m1': [get_rms_diff(sample_z1, model_z1), [sample_formants1, model_formants1]],
+#         's2m1': [get_rms_diff(sample_z2, model_z1), [sample_formants2, model_formants1]],
+#         's1m2': [get_rms_diff(sample_z1, model_z2), [sample_formants1, model_formants2]],
+#         's2m2': [get_rms_diff(sample_z2, model_z2), [sample_formants2, model_formants2]]
+#     }
 
-    sorted_rms_diffs = sorted(rms_diffs.items(), key=lambda x: x[1][0])
+#     sorted_rms_diffs = sorted(rms_diffs.items(), key=lambda x: x[1][0])
 
-    return sorted_rms_diffs[0][1][1]
+#     return sorted_rms_diffs[0][1][1]
 
 
 def get_file_ext(filename):
@@ -501,22 +501,74 @@ def read_signal(file):
 
         signal = audio._data
         fs = audio.frame_rate
+        channels = audio.channels
+        sample_width = audio.sample_width
+
+        if channels != 1:
+            raise Exception('File must be mono (1 channel)')
 
     except Exception as e:
         raise Exception('Error reading signal from file: %s' % e)
 
-    # Truncate to nearest 16 bits.
+    # Truncate to nearest sample width.
+    bits_per_sample = sample_width * 8
     signal_len = len(signal)
-    signal_len = signal_len - (signal_len % 16)
+    signal_len = signal_len - (signal_len % bits_per_sample)
     signal = signal[:signal_len]
 
     # Convert to numpy array.
     try:
-        signal = np.fromstring(signal, 'Int16')
+        signal = np.fromstring(signal, 'Int' + str(bits_per_sample))
     except ValueError as ve:
         raise Exception('Error converting signal to array: %s' % ve)
 
     return signal, fs
+
+
+def get_vowel_data_from_file_or_dir(file, show_formants=True, show_dimensions=True):
+
+    formants = []
+    dimensions = []
+
+    if type(file) is str and os.path.isdir(file):
+        # Directory
+        for f in os.listdir(file):
+            path = os.path.join(file, f)
+            if os.path.isfile(path) and get_file_ext(f) in FILE_TYPES.keys():
+                print path
+                if show_formants:
+                    formants.append(get_formants_from_file(path))
+                if show_dimensions:
+                    dimensions.append(get_dimensions_from_file(path))
+        if show_formants and not show_dimensions:
+            return formants
+        if show_dimensions and not show_formants:
+            return dimensions
+        return formants, dimensions
+
+    # Only one file
+    if show_formants and not show_dimensions:
+        return get_formants_from_file(file)
+    if show_dimensions and not show_formants:
+        return get_dimensions_from_file(file)
+
+    return get_formants_from_file(file), get_dimensions_from_file(file)
+
+
+
+def get_formants_from_file(file):
+
+    signal, fs = read_signal(file)
+    signal = VowelSignal(signal, fs)
+    vowel_signal = signal.get_main_vowel_signal()   
+    return get_formants(vowel_signal, fs)[:4]
+
+
+def get_dimensions_from_file(file):
+
+    formants = get_formants_from_file(file)[:4]
+    z_values = bark_diff(formants)
+    return get_dimensions(z_values)
 
 
 def rate_vowel_by_direct_comparison(sample_file, model_file):
@@ -525,19 +577,10 @@ def rate_vowel_by_direct_comparison(sample_file, model_file):
     Rate sample vowel by directly comparing it to a model file.
     """
     
-    sample_signal, sample_fs = read_signal(sample_file)
-    model_signal, model_fs = read_signal(model_file)
+    sample_formants = get_formants_from_file(sample_file)
+    model_formants = get_formants_from_file(model_file)
 
-    sample_signal = VowelSignal(sample_signal, sample_fs)
-    model_signal = VowelSignal(model_signal, model_fs)
-
-    sample_vowel_signal = sample_signal.get_main_vowel_signal()    
-    model_vowel_signal = model_signal.get_main_vowel_signal()    
-
-    sample_formants = get_formants(sample_vowel_signal, sample_fs)[:4]
-    model_formants = get_formants(model_vowel_signal, model_fs)[:4]
-
-    sample_formants, model_formants = get_f1_f2_f3_direct(sample_formants, model_formants)
+    # sample_formants, model_formants = get_f1_f2_f3_direct(sample_formants, model_formants)
 
     sample_z = bark_diff(sample_formants)
     model_z = bark_diff(model_formants)
@@ -586,12 +629,10 @@ def rate_vowel_by_dialect(file, vowel, dialect, show_graph=False):
     signal = VowelSignal(signal, fs, **kwargs)
     vowel_signal = signal.get_main_vowel_signal()    
 
-    formants = get_formants(vowel_signal, fs)[:4]
-
-    print formants
+    sample_formants = get_formants(vowel_signal, fs)[:3]
 
     model_formants = dialect[vowel]
-    sample_formants = get_f1_f2_f3(formants, model_formants)
+    # sample_formants = get_f1_f2_f3(formants, model_formants)
 
     sample_z = bark_diff(sample_formants)
     model_z = bark_diff(model_formants)
