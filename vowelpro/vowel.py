@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 from scipy import stats
+import scipy.signal
 from scipy.signal import lfilter, hamming
 from scikits.talkbox import lpc
 from pydub import AudioSegment
@@ -192,13 +193,13 @@ class Signal():
         return vowel_signal
 
 
-    def get_hz_per_x(self, fft):
+    def get_hz_per_x(self, fft, max_hz):
 
         """
         Get number of Hertz per x coordinate.
         """
 
-        max_hz = self.fs / 2
+        max_hz = max_hz or self.fs / 2
         return max_hz / float(len(fft))
 
 
@@ -237,7 +238,7 @@ class Signal():
         # Plot FFT
         plt.subplot(413) 
         fft = get_fft(self.get_main_vowel_signal())
-        hz_per_x = int(self.get_hz_per_x(fft))
+        hz_per_x = int(self.get_hz_per_x(fft, 8000))
         fft_len = len(fft)
         fft_x = [i * hz_per_x for i in xrange(fft_len)]
         plt.plot(fft_x, fft)
@@ -278,15 +279,17 @@ def get_formants(x, fs):
 
     """
 
+    # b, a = scipy.signal.butter(5, 1.0, 'low', analog=True)
+    # x = scipy.signal.filtfilt(b, a, x)
+
+    x1 = lfilter([1.], [1., 0.63], x)
+
     # Get Hamming window.
-    N = len(x)
-    w = np.hamming(N)
+    # N = len(x)
+    # w = np.hamming(N)
 
-    # Apply window.
-    x1 = x * w
-
-    # Apply pre-emphasis filter.
-    # x1 = lfilter([1.0], [1.0, -0.63], x1)
+    # # Apply window.
+    # x1 = x * w
 
     # Get LPC.
     ncoeff = 2 + fs / 1000
@@ -305,6 +308,10 @@ def get_formants(x, fs):
     return frqs
 
 
+def get_first_three_formants(x, fs):
+    return get_formants(x, fs)[:3]
+
+
 def get_dimensions(z_values):
 
     """
@@ -320,6 +327,10 @@ def get_dimensions(z_values):
     return front_back(z_values), height(z_values)
 
 
+def calc_percent_off(actual, desired):
+    return abs(actual - desired) / float(desired)
+
+
 def calc_percent_correct(actual, desired):
 
     """
@@ -328,7 +339,7 @@ def calc_percent_correct(actual, desired):
 
     # Account for values that overshoot the desired value.
     # eg) 4.8/5.0 and 5.2/5.0 are both equally correct (96%)
-    percent_off = abs(actual - desired) / float(desired)
+    percent_off = calc_percent_off(actual, desired)
     if percent_off >= 1.0:
         # Is 100% off or more.
         return 0
@@ -363,71 +374,77 @@ def get_vowel_score(sample_z, model_z):
     }
 
 
-def get_rms_diff(a, b):
-
-    """
-    Measure the average difference of the curves.
-
-    See: http://programmers.stackexchange.com/questions/100303/correlation-between-two-curves
-    """
-
-    rmsdiff = 0
-    for (x, y) in zip(a, b):
-        rmsdiff += (x - y) ** 2  # NOTE: overflow danger if the vectors are long!
-    rmsdiff = math.sqrt(rmsdiff / min(len(a), len(b)))    
-    return rmsdiff
-
-
-def get_f1_f2_f3(sample_formants, model_formants):
-
-    """
-    Get [F1, F2, F3] of the sample formants.
-
-    Calculate z-values both assuming F0 was found and assuming it was missed. 
-    Compare them to the model and return whichever one is more similar to the model.
-    """
-
-    model_z = bark_diff(model_formants)
-
-    sample_formants1 = sample_formants[:3] # Assumes F0 was missed.
-    sample_formants2 = sample_formants[1:4] # Assumes F0 was found.
-    sample_z1 = bark_diff(sample_formants1) 
-    sample_z2 = bark_diff(sample_formants2) 
-    
-    rms_diff1 = get_rms_diff(sample_z1, model_z)
-    rms_diff2 = get_rms_diff(sample_z2, model_z)
-
-    if rms_diff1 < rms_diff2:
-        return sample_formants1
-
-    return sample_formants2
-
-
 def get_file_ext(filename):
     return filename.split('.').pop()
 
 
-def rate_vowel(file, vowel, dialect, file_type, show_graph=False):
-
-    """
-    Rate vowel as compared to model.
-    """
-
+def get_file_type(vowel_file, file_type=None):
     try:
         # `file` may be a File object or a file path (string) 
         if not file_type:
             file_ext = None
 
-            if type(file) is str:
+            if type(vowel_file) is str:
                 # `file` is file path.
-                file_ext = get_file_ext(file)
+                file_ext = get_file_ext(vowel_file)
             else:
                 # `file` is File object.
-                file_ext = get_file_ext(file.name)
+                file_ext = get_file_ext(vowel_file.name)
 
             file_type = FILE_TYPES[file_ext]
+
+        return file_type
     except:
         raise Exception('Error determining file type. It may need to be passed explicitly. Must be one of: %s' % FILE_TYPES.keys())
+
+
+def read_file(vowel_file, file_type):
+    # Read signal from file.
+    # NB: Needs to be mono. Does not work correctly with stereo.
+    try:     
+
+        if file_type == FILE_TYPES['wav']:
+            # WAV
+            audio = AudioSegment.from_wav(vowel_file)
+        elif file_type == FILE_TYPES['mp3']:
+            # MP3
+            audio = AudioSegment.from_mp3(vowel_file)
+        else:
+            # OGG
+            audio = AudioSegment.from_ogg(vowel_file)
+
+        signal = audio._data
+        fs = audio.frame_rate
+
+        return signal, fs
+
+    except Exception as e:
+        raise Exception('Error reading signal from file: %s' % e)
+
+
+def get_signal(vowel_file, file_type):
+
+    signal, fs = read_file(vowel_file, file_type)
+
+    # Truncate to nearest 16.
+    signal_len = len(signal)
+    signal_len = signal_len - (signal_len % 16)
+    signal = signal[:signal_len]
+
+    try:
+        signal = np.fromstring(signal, 'Int16')
+        return signal, fs
+    except ValueError as ve:
+        raise Exception('Error converting signal to array: %s' % ve)
+
+
+def rate_vowel(vowel_file, vowel, dialect, file_type, show_graph=False):
+
+    """
+    Rate vowel as compared to model.
+    """
+
+    file_type = get_file_type(vowel_file, file_type)
 
     if not file_type in FILE_TYPES:
         raise Exception('Incorrect file type. Must be one of: %s' % FILE_TYPES.keys())
@@ -446,38 +463,7 @@ def rate_vowel(file, vowel, dialect, file_type, show_graph=False):
     if not vowel in dialect:
         raise Exception('Vowel not found in selected dialect. Must be one of: %s' % dialect.keys())
 
-    signal = None
-    fs = 0
-
-    # Read signal from file.
-    # NB: Needs to be mono. Does not work correctly with stereo.
-    try:     
-
-        if file_type == FILE_TYPES['wav']:
-            # WAV
-            audio = AudioSegment.from_wav(file)
-        elif file_type == FILE_TYPES['mp3']:
-            # MP3
-            audio = AudioSegment.from_mp3(file)
-        else:
-            # OGG
-            audio = AudioSegment.from_ogg(file)
-
-        signal = audio._data
-        fs = audio.frame_rate
-
-    except Exception as e:
-        raise Exception('Error reading signal from file: %s' % e)
-
-    # Truncate to nearest 16.
-    signal_len = len(signal)
-    signal_len = signal_len - (signal_len % 16)
-    signal = signal[:signal_len]
-
-    try:
-        signal = np.fromstring(signal, 'Int16')
-    except ValueError as ve:
-        raise Exception('Error converting signal to array: %s' % ve)
+    signal, fs = get_signal(vowel_file, file_type)
 
     diphthongs = 'DIPHTHONGS' in dialect and dialect['DIPHTHONGS']
 
@@ -489,10 +475,8 @@ def rate_vowel(file, vowel, dialect, file_type, show_graph=False):
     signal = Signal(signal, fs, **kwargs)
     vowel_signal = signal.get_main_vowel_signal()    
 
-    formants = get_formants(vowel_signal, fs)[:4]
-
+    sample_formants = get_first_three_formants(vowel_signal, fs)[:3]
     model_formants = dialect[vowel]
-    sample_formants = get_f1_f2_f3(formants, model_formants)
 
     sample_z = bark_diff(sample_formants)
     model_z = bark_diff(model_formants)
