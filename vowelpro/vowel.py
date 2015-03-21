@@ -28,6 +28,7 @@ VOWELS = {
     'o': 'Close-mid back rounded',
     'U': 'Near-close back rounded',
     'u': 'Close back rounded',
+    'O': 'Open-mid back rounded',
     '^': 'Open-mid back unrounded',
     'r': 'Rhotic'    
 }
@@ -52,6 +53,21 @@ FORMANTS = {
         'u': [323, 1417, 2399],     
         '^': [574, 1415, 2496],     
         'r': [429, 1362, 1679]     
+    },
+    'general_american': {
+        # See: Control Methods Used in a Study of the Vowels
+        #      Peterson & Barney, 1952
+        # http://www.coe.montana.edu/ee/rosss/courses/ee578_fall_2008/hw05/petersonbarney_jacoustsocam_1952.pdf
+        'i': [270, 2290, 3010],
+        'I': [390, 1990, 2550],
+        'E': [530, 1840, 2480],
+        'ae': [660, 1720, 2410],
+        '^': [520, 1190, 2390],
+        'a': [730, 1090, 2240],
+        'O': [570, 840, 2410],
+        'U': [440, 1020, 2240],
+        'u': [300, 870, 2240],
+        'r': [490, 1350, 1690],
     },
     'michigan': {
         # See: Acoustic Characteristic of American English Vowels
@@ -245,8 +261,7 @@ class Signal():
 
         # Plot spectrogram
         plt.subplot(414)
-        spectrogram = plt.specgram(self.signal, Fs = self.fs, scale_by_freq=True, sides='default')
-
+        Pxx, freqs, bins, im = plt.specgram(self.signal, Fs = self.fs, scale_by_freq=True, sides='default')
         plt.show()
 
 
@@ -308,8 +323,45 @@ def get_formants(x, fs):
     return frqs
 
 
-def get_first_three_formants(x, fs):
-    return get_formants(x, fs)[:3]
+def get_rms_diff(a, b):
+
+    """
+    Measure the average difference of the curves.
+
+    See: http://programmers.stackexchange.com/questions/100303/correlation-between-two-curves
+    """
+
+    rmsdiff = 0
+    for (x, y) in zip(a, b):
+        rmsdiff += (x - y) ** 2  # NOTE: overflow danger if the vectors are long!
+    rmsdiff = math.sqrt(rmsdiff / min(len(a), len(b)))    
+    return rmsdiff
+
+
+def get_f1_f2_f3(sample_formants, model_formants):
+
+    """
+    Get [F1, F2, F3] of the sample formants.
+
+    Calculate z-values both assuming F0 was found and assuming it was missed. 
+    Compare them to the model and return whichever one is more similar to the model.
+    """
+
+    model_z = bark_diff(model_formants)
+
+    sample_formants1 = sample_formants[:3] # Assumes F0 was missed.
+    sample_formants2 = sample_formants[1:4] # Assumes F0 was found.
+    sample_z1 = bark_diff(sample_formants1) 
+    sample_z2 = bark_diff(sample_formants2) 
+    
+    rms_diff1 = get_rms_diff(sample_z1, model_z)
+    rms_diff2 = get_rms_diff(sample_z2, model_z)
+
+    if rms_diff1 < rms_diff2:
+        return sample_formants1
+
+    return sample_formants2
+
 
 
 def get_dimensions(z_values):
@@ -475,8 +527,9 @@ def rate_vowel(vowel_file, vowel, dialect, file_type, show_graph=False):
     signal = Signal(signal, fs, **kwargs)
     vowel_signal = signal.get_main_vowel_signal()    
 
-    sample_formants = get_first_three_formants(vowel_signal, fs)[:3]
+    formants = get_formants(vowel_signal, fs)
     model_formants = dialect[vowel]
+    sample_formants = get_f1_f2_f3(formants, model_formants)
 
     sample_z = bark_diff(sample_formants)
     model_z = bark_diff(model_formants)
