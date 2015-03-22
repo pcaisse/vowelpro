@@ -209,7 +209,7 @@ class Signal():
         return vowel_signal
 
 
-    def get_hz_per_x(self, fft, max_hz):
+    def get_hz_per_x(self, fft, max_hz=None):
 
         """
         Get number of Hertz per x coordinate.
@@ -260,8 +260,17 @@ class Signal():
         plt.plot(fft_x, fft)
 
         # Plot spectrogram
-        plt.subplot(414)
-        Pxx, freqs, bins, im = plt.specgram(self.signal, Fs = self.fs, scale_by_freq=True, sides='default')
+        ax = plt.subplot(414)
+        Pxx, freqs, bins, im = plt.specgram(self.signal, Fs=self.fs, scale_by_freq=True, sides='default')
+        ax.set_ylim(0, 5000)
+
+        # Plot formants every 10 ms.
+        step = self.fs / 100
+        chunked_formants = get_chunked_formants(self.signal, self.fs, step)
+        for i, formants in enumerate(chunked_formants):
+            for formant in formants:
+                plt.plot(self.signal_x[i * step], formant, marker='o', color='r')
+
         plt.show()
 
 
@@ -283,6 +292,24 @@ def get_fft(signal):
     return 20 * np.log10(abs(np.fft.rfft(signal)))
 
 
+def get_chunked_formants(signal, fs, step):
+
+    """
+    Find formants every x indexes.
+    """
+
+    chunked_formants = []
+    
+    for index in xrange(0, len(signal), step):
+        next_index = index + step
+        signal_chunk = signal[index:next_index]
+        formants = get_formants(signal_chunk, fs)
+        signal_chunk_formants = formants[:3]
+        chunked_formants.append(signal_chunk_formants)
+
+    return chunked_formants
+
+
 def get_formants(x, fs):
 
     """
@@ -296,6 +323,10 @@ def get_formants(x, fs):
 
     # b, a = scipy.signal.butter(5, 1.0, 'low', analog=True)
     # x = scipy.signal.filtfilt(b, a, x)
+
+    if not np.any(x):
+        # All zeroes
+        return []
 
     x1 = lfilter([1.], [1., 0.63], x)
 
